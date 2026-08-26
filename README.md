@@ -1,4 +1,4 @@
-# ScreenMe 0.2.0
+# ScreenMe 0.3.0
 
 ScreenMe je profesionalno Android orodje za hitro beleženje napak med testiranjem aplikacij. Posnetek zaslona, vizualne oznake in strukturirana opomba ostanejo združeni v enem zapisu.
 
@@ -8,10 +8,12 @@ ScreenMe je profesionalno Android orodje za hitro beleženje napak med testiranj
 - enojni dotik plavajočega gumba za posnetek in opombo;
 - dvojni dotik za urejevalnik s svinčnikom, označevalnikom, elipso, pravokotnikom in puščico;
 - barve, debelina poteze, razveljavi in uveljavi;
-- dolg pritisk za premik gumba ali spust na spodnji X za ustavitev;
+- pritisk in takojšen poteg za premik gumba ali spust na spodnji X za ustavitev;
 - naslov, resnost ter opis oziroma koraki za ponovitev napake;
 - knjižnica zapisov z iskanjem, filtrom projekta, podrobnostmi, deljenjem in brisanjem;
 - izbirna sinhronizacija v mapo ponudnika dokumentov, na primer Google Drive ali Dropbox;
+- Turbo mode za skupno Drive delovno vrsto med testerjem in Codexom;
+- slovenski govor-v-besedilo za hitro narekovanje opisa napake;
 - nastavljiva velikost in barva plavajočega gumba;
 - uvodni vodič, prilagodljiva ikona in profesionalen uporabniški vmesnik;
 - preverjanje nove različice približno vsakih 6 ur in po ponovnem zagonu telefona, tudi ko aplikacija ni odprta.
@@ -25,6 +27,10 @@ Android/data/si.screenme.app/files/ScreenMe/projekti/<projekt>/<datum-in-čas>/
 ```
 
 Vsak zapis vsebuje `screenshot.png`, po potrebi `annotated.png`, `note.md` in `metadata.json`. Ko izbereš oblačno mapo, se novi zapisi samodejno kopirajo tudi tja. Drug Codex ali ChatGPT pogovor lahko mapo pregleda, ko ima njegov račun oziroma priključek dovoljenje za isto mapo.
+
+### Turbo mode
+
+V nastavitvah vključi **Turbo mode** in izberi namensko Google Drive mapo. Ko je celoten zapis naložen, ScreenMe kot zadnjo datoteko ustvari `turbo-status.json` s stanjem `NEW`. Codex zapis prevzame z `IN_PROGRESS` ter ga po popravku označi kot `DONE` ali `NEEDS_INFO`. Agent-side skripti so v mapi `scripts/`.
 
 ## Dovoljenja in zasebnost
 

@@ -1,5 +1,13 @@
 # Dnevnik sprememb
 
+## 0.3.0 — 2026-08-26
+
+- Plavajoči gumb se zdaj premakne takoj s pritiskom in potegom; dolg pritisk ni več potreben.
+- Prikaz različice v nastavitvah se samodejno prebere iz nameščene aplikacije.
+- Dodan Turbo mode s strukturirano skupno Google Drive delovno vrsto.
+- Zapisi v Turbo načinu dobijo zaključni `turbo-status.json` in navodila protokola za Codex agente.
+- Dodan kakovostno formatiran govor-v-besedilo za slovenske opise napak.
+
 ## 0.2.0 — 2026-08-26
 
 - Nov profesionalen vmesnik, uvodni vodič in prilagodljiva ikona.

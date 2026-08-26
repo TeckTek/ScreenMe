@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">ScreenMe</string>
     <string name="start_using">ZAČNI UPORABLJATI</string>
+    <string name="turbo_mode">⚡  Turbo mode</string>
 </resources>
