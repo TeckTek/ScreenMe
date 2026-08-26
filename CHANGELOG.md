@@ -1,5 +1,13 @@
 # Dnevnik sprememb
 
+## 0.3.1 — 2026-08-26
+
+- Prvi dotik plavajoče ikone zdaj takoj pokaže barvni odziv.
+- Med pripravo posnetka ikona ostane vidna in se obarva zlato; skrije se le tik pred čistim zajemom.
+- Dodana samodejna obnovitev ikone, če sistem posnetka ne vrne.
+- Gumba za zavrnitev ter shranjevanje/pošiljanje sta med pisanjem vedno vidna nad tipkovnico.
+- Po shranjevanju ali zavrženju se uporabnik vrne neposredno v aplikacijo, kjer je ustvaril posnetek.
+
 ## 0.3.0 — 2026-08-26
 
 - Plavajoči gumb se zdaj premakne takoj s pritiskom in potegom; dolg pritisk ni več potreben.

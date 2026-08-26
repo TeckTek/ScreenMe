@@ -1,4 +1,4 @@
-# ScreenMe 0.3.0
+# ScreenMe 0.3.1
 
 ScreenMe je profesionalno Android orodje za hitro beleženje napak med testiranjem aplikacij. Posnetek zaslona, vizualne oznake in strukturirana opomba ostanejo združeni v enem zapisu.
 

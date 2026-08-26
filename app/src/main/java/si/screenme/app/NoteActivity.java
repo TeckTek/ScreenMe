@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.view.Gravity;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -19,6 +20,10 @@ import android.widget.TextView;
 
 import java.io.File;
 import java.util.ArrayList;
+
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 public class NoteActivity extends androidx.activity.ComponentActivity {
     static final int SPEECH = 88;
@@ -49,13 +54,19 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
     }
 
     void build() {
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setBackgroundColor(Ui.BG);
+
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setBackgroundColor(Ui.BG);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(Ui.dp(this, 20), 0, Ui.dp(this, 20), Ui.dp(this, 24));
+        root.setPadding(Ui.dp(this, 20), 0, Ui.dp(this, 20), Ui.dp(this, 12));
         scroll.addView(root);
+        page.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         root.addView(Ui.nav(this, "Nova opomba"));
 
         LinearLayout preview = Ui.card(this);
@@ -96,18 +107,30 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
         root.addView(form);
         Ui.margin(form, 0, 14, 0, 0);
 
+        LinearLayout footer = Ui.row(this);
+        footer.setPadding(Ui.dp(this, 20), Ui.dp(this, 12), Ui.dp(this, 20), Ui.dp(this, 16));
+        footer.setBackgroundColor(Ui.CARD);
+        footer.setElevation(Ui.dp(this, 8));
         LinearLayout row = Ui.row(this);
         TextView cancel = Ui.button(this, "ZAVRZI", false);
         cancel.setTextColor(Ui.RED);
         cancel.setOnClickListener(v -> confirmDiscard());
-        TextView save = Ui.button(this, "SHRANI ZAPIS", true);
+        boolean sends = !getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty();
+        TextView save = Ui.button(this, sends ? "SHRANI IN POŠLJI" : "SHRANI ZAPIS", true);
         save.setOnClickListener(v -> save());
         row.addView(cancel, Ui.weight(0, Ui.dp(this, 56), 1));
         row.addView(save, Ui.weight(0, Ui.dp(this, 56), 2));
         Ui.margin(save, 10, 0, 0, 0);
-        root.addView(row);
-        Ui.margin(row, 0, 16, 0, 0);
-        setContentView(scroll);
+        footer.addView(row, new LinearLayout.LayoutParams(-1, -2));
+        page.addView(footer, new LinearLayout.LayoutParams(-1, -2));
+        int footerLeft = Ui.dp(this, 20), footerTop = Ui.dp(this, 12);
+        int footerRight = Ui.dp(this, 20), footerBottom = Ui.dp(this, 16);
+        ViewCompat.setOnApplyWindowInsetsListener(page, (view, insets) -> {
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            footer.setPadding(footerLeft, footerTop, footerRight, footerBottom + ime.bottom);
+            return insets;
+        });
+        setContentView(page);
         title.requestFocus();
     }
 
@@ -166,6 +189,11 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
         boolean folder = !getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty();
         Ui.toast(this, turbo ? (folder ? "Zapis je poslan v Turbo vrsto"
                 : "Zapis je lokalen · Turbo čaka na mapo") : "Zapis je shranjen");
+        returnToSource();
+    }
+
+    void returnToSource() {
+        moveTaskToBack(true);
         finish();
     }
 
@@ -173,7 +201,7 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Zavrnem posnetek?")
                 .setMessage("Ta posnetek še ni shranjen.")
-                .setPositiveButton("Zavrzi", (d, w) -> { EditorActivity.delete(dir); finish(); })
+                .setPositiveButton("Zavrzi", (d, w) -> { EditorActivity.delete(dir); returnToSource(); })
                 .setNegativeButton("Nadaljuj urejanje", null)
                 .show();
     }
