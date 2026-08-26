@@ -2,4 +2,8 @@
     <string name="app_name">ScreenMe</string>
     <string name="start_using">ZAČNI UPORABLJATI</string>
     <string name="turbo_mode">⚡  Turbo mode</string>
+    <string name="auto_project_toggle">Prepoznaj aplikacijo v ospredju</string>
+    <string name="auto_project_manual">Ročna izbira projekta ostane aktivna.</string>
+    <string name="auto_project_ready">✓ Prepoznava je dovoljena in pripravljena.</string>
+    <string name="auto_project_permission_needed">Za prepoznavo v sistemskih nastavitvah dovoli dostop do uporabe.</string>
 </resources>

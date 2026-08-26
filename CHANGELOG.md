@@ -1,5 +1,15 @@
 # Dnevnik sprememb
 
+## 0.4.0 — 2026-08-27
+
+- Dolgi pritisk plavajočega gumba zdaj privzeto odpre domači zaslon ScreenMe.
+- Med aktivnim zajemom je na domačem zaslonu vedno na voljo jasna rdeča tipka za ustavitev.
+- V nastavitvah je mogoče ločeno izbrati dejanje enojnega, dvojnega in dolgega dotika.
+- Pritisk in poteg ostaja vedno rezerviran za takojšnje premikanje gumba.
+- Dodan je namenski zaslon za izbiro, preimenovanje in varno brisanje projektov.
+- Dodana je izbirna prepoznava aplikacije v ospredju, ki ob posnetku samodejno izbere ali ustvari ustrezen projekt.
+- Projekt je pri pisanju opombe vedno viden in ga je mogoče pred shranjevanjem zamenjati ali na novo ustvariti.
+
 ## 0.3.2 — 2026-08-26
 
 - Miren dolg pritisk plavajočega gumba odpre nastavitve ScreenMe.

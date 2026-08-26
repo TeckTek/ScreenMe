@@ -30,7 +30,8 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
     File dir;
     boolean edited;
     EditText note;
-    Spinner severity;
+    Spinner severity, project;
+    ArrayAdapter<String> projectAdapter;
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -78,6 +79,22 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
         root.addView(preview);
 
         LinearLayout form = Ui.card(this);
+        form.addView(Ui.label(this, "PROJEKT"));
+        LinearLayout projectRow = Ui.row(this);
+        project = new Spinner(this);
+        reloadProjects();
+        projectRow.addView(project, Ui.weight(0, Ui.dp(this, 52), 1));
+        TextView newProject = Ui.button(this, "+ NOV", false);
+        newProject.setOnClickListener(v -> newProject());
+        projectRow.addView(newProject,
+                new LinearLayout.LayoutParams(Ui.dp(this, 96), Ui.dp(this, 52)));
+        Ui.margin(newProject, 10, 0, 0, 0);
+        form.addView(projectRow);
+        TextView projectHint = Ui.text(this,
+                "Projekt lahko pred shranjevanjem vedno zamenjaš.", 12, Ui.MUTED);
+        form.addView(projectHint);
+        Ui.margin(projectHint, 0, 2, 0, 14);
+
         form.addView(Ui.label(this, "RESNOST"));
         severity = new Spinner(this);
         severity.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
@@ -167,17 +184,76 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
             return;
         }
         String t = automaticTitle(n);
-        String project = ProjectStore.current(this);
-        String md = "# " + t + "\n\n**Projekt:** " + project + "  \n**Resnost:** " + sev
+        String selectedProject = project.getSelectedItem().toString();
+        if (!moveRecordToProject(selectedProject)) {
+            Ui.toast(this, "Zapisa ni bilo mogoče premakniti v izbrani projekt");
+            return;
+        }
+        ProjectStore.select(this, selectedProject);
+        String md = "# " + t + "\n\n**Projekt:** " + selectedProject + "  \n**Resnost:** " + sev
                 + "\n\n## Opis\n\n" + n + "\n";
         Storage.text(new File(dir, "note.md"), md);
-        Storage.text(new File(dir, "metadata.json"), Storage.json(project, t, sev, n, edited));
+        Storage.text(new File(dir, "metadata.json"), Storage.json(selectedProject, t, sev, n, edited));
         Storage.sync(this, dir);
         boolean turbo = getSharedPreferences("screenme", 0).getBoolean("turbo", false);
         boolean folder = !getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty();
         Ui.toast(this, turbo ? (folder ? "Zapis je poslan v Turbo vrsto"
                 : "Zapis je lokalen · Turbo čaka na mapo") : "Zapis je shranjen");
         returnToSource();
+    }
+
+    void reloadProjects() {
+        ArrayList<String> projects = ProjectStore.all(this);
+        String current = ProjectStore.current(this);
+        if (projects.isEmpty()) {
+            current = "Moj prvi projekt";
+            ProjectStore.select(this, current);
+            projects = ProjectStore.all(this);
+        }
+        projectAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, projects);
+        project.setAdapter(projectAdapter);
+        project.setSelection(Math.max(0, projects.indexOf(current)));
+    }
+
+    void newProject() {
+        EditText input = new EditText(this);
+        input.setSingleLine();
+        input.setHint("Ime projekta");
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Nov projekt")
+                .setView(input)
+                .setPositiveButton("Ustvari", null)
+                .setNegativeButton("Prekliči", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String name = input.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        input.setError("Vpiši ime projekta");
+                        return;
+                    }
+                    if (ProjectStore.contains(this, name)) {
+                        input.setError("Projekt s tem imenom že obstaja");
+                        return;
+                    }
+                    ProjectStore.select(this, name);
+                    reloadProjects();
+                    dialog.dismiss();
+                }));
+        dialog.show();
+    }
+
+    boolean moveRecordToProject(String selectedProject) {
+        File targetRoot = ProjectStore.folder(this, selectedProject);
+        if (dir.getParentFile() != null && dir.getParentFile().equals(targetRoot)) return true;
+        if (!targetRoot.exists() && !targetRoot.mkdirs()) return false;
+        File target = new File(targetRoot, dir.getName());
+        int suffix = 2;
+        while (target.exists()) target = new File(targetRoot, dir.getName() + "-" + suffix++);
+        if (!dir.renameTo(target)) return false;
+        dir = target;
+        return true;
     }
 
     String automaticTitle(String text) {

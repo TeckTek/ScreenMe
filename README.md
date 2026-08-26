@@ -1,15 +1,19 @@
-# ScreenMe 0.3.2
+# ScreenMe 0.4.0
 
 ScreenMe je profesionalno Android orodje za hitro beleženje napak med testiranjem aplikacij. Posnetek zaslona, vizualne oznake in strukturirana opomba ostanejo združeni v enem zapisu.
 
 ## Zmožnosti
 
 - shranjeni projekti in hiter izbor aktivnega projekta;
+- upravljanje projektov s preimenovanjem ter varnim brisanjem z ali brez lokalnih zapisov;
+- izbirna samodejna prepoznava aplikacije v ospredju in izbor ustreznega projekta;
+- vedno viden ter zamenljiv projekt na obrazcu opombe pred končnim shranjevanjem;
 - enojni dotik plavajočega gumba za posnetek in opombo;
 - dvojni dotik za urejevalnik s svinčnikom, označevalnikom, elipso, pravokotnikom in puščico;
 - barve, debelina poteze, razveljavi in uveljavi;
 - pritisk in takojšen poteg za premik gumba ali spust na spodnji X za ustavitev;
-- dolg pritisk plavajočega gumba za hiter dostop do nastavitev;
+- dolg pritisk plavajočega gumba privzeto odpre ScreenMe, kjer lahko takoj ustaviš zajem;
+- nastavljiva dejanja za enojni, dvojni in dolgi dotik plavajočega gumba;
 - resnost ter opis oziroma koraki za ponovitev napake; naslov zapisa se ustvari samodejno;
 - knjižnica zapisov z iskanjem, filtrom projekta, podrobnostmi, deljenjem in brisanjem;
 - izbirna sinhronizacija v mapo ponudnika dokumentov, na primer Google Drive ali Dropbox;
@@ -38,6 +42,7 @@ V nastavitvah vključi **Turbo mode** in izberi namensko Google Drive mapo. Ko j
 - Android vsak začetek zajema zaslona potrdi s sistemskim pogovornim oknom.
 - Dovoljenje za prikaz čez druge aplikacije je potrebno samo za plavajoči gumb.
 - Internet se uporablja za preverjanje manifesta posodobitev.
+- Samodejna izbira projekta uporablja izbirno Androidovo dovoljenje za dostop do uporabe; ScreenMe prebere le trenutno aplikacijo in podatkov ne pošilja drugam.
 - ScreenMe podatkov ne pošilja v lastno storitev. Sinhronizacija uporablja samo mapo, ki jo uporabnik izrecno izbere.
 - Po ročnem sistemskem dejanju »Force stop« Android ustavi tudi preverjanje posodobitev do naslednjega zagona aplikacije.
 

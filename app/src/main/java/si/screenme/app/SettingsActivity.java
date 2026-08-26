@@ -15,9 +15,9 @@ import android.widget.TextView;
 public class SettingsActivity extends androidx.activity.ComponentActivity {
     static final int TREE = 77;
     EditText update;
-    Spinner size, color;
-    TextView syncStatus;
-    Switch turbo;
+    Spinner size, color, singleAction, doubleAction, longAction;
+    TextView syncStatus, usageStatus;
+    Switch turbo, autoProject;
     boolean fromOverlay;
 
     @Override public void onCreate(Bundle b) {
@@ -61,6 +61,48 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         overlay.addView(color);
         root.addView(overlay);
         Ui.margin(overlay, 0, 8, 0, 18);
+
+        root.addView(Ui.label(this, "DEJANJA GUMBA"));
+        LinearLayout gestures = Ui.card(this);
+        singleAction = actionSpinner(gestures, "Enojni dotik", OverlayActionPrefs.KEY_SINGLE,
+                OverlayActionPrefs.NOTE);
+        doubleAction = actionSpinner(gestures, "Dvojni dotik", OverlayActionPrefs.KEY_DOUBLE,
+                OverlayActionPrefs.EDIT);
+        longAction = actionSpinner(gestures, "Dolgi dotik", OverlayActionPrefs.KEY_LONG,
+                OverlayActionPrefs.HOME);
+        gestures.addView(Ui.text(this,
+                "Pritisk in poteg vedno premakne gumb. Spust na spodnji X ustavi zajem.",
+                13, Ui.MUTED));
+        root.addView(gestures);
+        Ui.margin(gestures, 0, 8, 0, 18);
+
+        root.addView(Ui.label(this, "SAMODEJNI PROJEKT"));
+        LinearLayout detection = Ui.card(this);
+        autoProject = new Switch(this);
+        autoProject.setText(R.string.auto_project_toggle);
+        autoProject.setTextSize(17);
+        autoProject.setTextColor(Ui.INK);
+        autoProject.setChecked(getSharedPreferences("screenme", 0)
+                .getBoolean("autoProject", false));
+        detection.addView(autoProject, new LinearLayout.LayoutParams(-1, Ui.dp(this, 56)));
+        detection.addView(Ui.text(this,
+                "Ob posnetku ScreenMe sam izbere ali ustvari projekt z imenom odprte aplikacije.",
+                13, Ui.MUTED));
+        usageStatus = Ui.text(this, "", 13, Ui.MUTED);
+        detection.addView(usageStatus);
+        Ui.margin(usageStatus, 0, 12, 0, 0);
+        TextView usage = Ui.button(this, "DOVOLJENJE ZA PREPOZNAVO", false);
+        usage.setOnClickListener(v -> {
+            save(false);
+            startActivity(new Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())));
+        });
+        detection.addView(usage);
+        Ui.margin(usage, 0, 12, 0, 0);
+        autoProject.setOnCheckedChangeListener((button, on) -> updateUsageStatus());
+        updateUsageStatus();
+        root.addView(detection);
+        Ui.margin(detection, 0, 8, 0, 18);
 
         root.addView(Ui.label(this, "SINHRONIZACIJA IN TURBO"));
         LinearLayout sync = Ui.card(this);
@@ -156,6 +198,17 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         }
     }
 
+    Spinner actionSpinner(LinearLayout parent, String title, String key, String defaultValue) {
+        parent.addView(Ui.text(this, title, 15, Ui.INK));
+        Spinner spinner = new Spinner(this);
+        spinner.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, OverlayActionPrefs.LABELS));
+        spinner.setSelection(OverlayActionPrefs.selection(this, key, defaultValue));
+        parent.addView(spinner);
+        Ui.margin(spinner, 0, 0, 0, 12);
+        return spinner;
+    }
+
     String syncText() {
         boolean folder = !getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty();
         boolean on = getSharedPreferences("screenme", 0).getBoolean("turbo", false);
@@ -165,6 +218,19 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         }
         return on ? "⚡  Turbo je povezan. Novi zapisi gredo v skupno delovno vrsto."
                 : "✓  Sinhronizacija je nastavljena. Novi zapisi se samodejno kopirajo v izbrano mapo.";
+    }
+
+    void updateUsageStatus() {
+        if (usageStatus == null || autoProject == null) return;
+        if (!autoProject.isChecked()) {
+            usageStatus.setText(R.string.auto_project_manual);
+        } else if (ForegroundAppDetector.hasAccess(this)) {
+            usageStatus.setText(R.string.auto_project_ready);
+            usageStatus.setTextColor(Ui.GREEN);
+        } else {
+            usageStatus.setText(R.string.auto_project_permission_needed);
+            usageStatus.setTextColor(Ui.AMBER);
+        }
     }
 
     void chooseTree() {
@@ -189,10 +255,15 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
 
     void save(boolean toast) {
         int[] sizes = {50, 62, 74};
+        OverlayActionPrefs.save(this,
+                singleAction == null ? 0 : singleAction.getSelectedItemPosition(),
+                doubleAction == null ? 1 : doubleAction.getSelectedItemPosition(),
+                longAction == null ? 2 : longAction.getSelectedItemPosition());
         getSharedPreferences("screenme", 0).edit()
                 .putInt("bubbleSize", sizes[size.getSelectedItemPosition()])
                 .putInt("bubbleColor", color.getSelectedItemPosition())
                 .putBoolean("turbo", turbo != null && turbo.isChecked())
+                .putBoolean("autoProject", autoProject != null && autoProject.isChecked())
                 .putString("updateUrl", update.getText().toString().trim())
                 .apply();
         if (toast) Ui.toast(this, "Nastavitve so shranjene");
@@ -206,6 +277,7 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
     @Override protected void onResume() {
         super.onResume();
         if (fromOverlay) OverlayService.setUiHidden(true);
+        updateUsageStatus();
     }
 
     @Override protected void onPause() {
