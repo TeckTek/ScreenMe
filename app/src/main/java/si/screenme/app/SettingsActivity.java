@@ -1,18 +1,216 @@
 package si.screenme.app;
 
-import android.app.*;import android.content.*;import android.net.*;import android.os.*;import android.view.*;import android.widget.*;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.Switch;
+import android.widget.TextView;
 
-public class SettingsActivity extends Activity{
-    static final int TREE=77;EditText update;Spinner size,color;TextView syncStatus;Switch turbo;
-    @Override public void onCreate(Bundle b){super.onCreate(b);Ui.bars(this);build();}
-    void build(){ScrollView scroll=new ScrollView(this);scroll.setBackgroundColor(Ui.BG);LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(Ui.dp(this,20),0,Ui.dp(this,20),Ui.dp(this,28));scroll.addView(root);root.addView(Ui.nav(this,"Nastavitve"));root.addView(Ui.label(this,"PLAVAJOČI GUMB"));LinearLayout overlay=Ui.card(this);overlay.addView(Ui.text(this,"Velikost gumba",15,Ui.INK));size=new Spinner(this);String[] sizes={"Majhen","Srednji","Velik"};size.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,sizes));int sp=getSharedPreferences("screenme",0).getInt("bubbleSize",62);size.setSelection(sp<=54?0:sp>=70?2:1);overlay.addView(size);overlay.addView(Ui.text(this,"Barva gumba",15,Ui.INK));color=new Spinner(this);color.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"Vijolična","Turkizna","Koralna"}));color.setSelection(getSharedPreferences("screenme",0).getInt("bubbleColor",0));overlay.addView(color);root.addView(overlay);Ui.margin(overlay,0,8,0,18);
-        root.addView(Ui.label(this,"SINHRONIZACIJA IN TURBO"));LinearLayout sync=Ui.card(this);turbo=new Switch(this);turbo.setText(R.string.turbo_mode);turbo.setTextSize(17);turbo.setTextColor(Ui.INK);turbo.setChecked(getSharedPreferences("screenme",0).getBoolean("turbo",false));sync.addView(turbo,new LinearLayout.LayoutParams(-1,Ui.dp(this,56)));sync.addView(Ui.text(this,"Novi zapisi postanejo skupna delovna vrsta za Codex. Zahteva oblačno mapo.",13,Ui.MUTED));syncStatus=Ui.text(this,syncText(),14,Ui.MUTED);sync.addView(syncStatus);Ui.margin(syncStatus,0,14,0,0);TextView choose=Ui.button(this,"IZBERI OBLAČNO MAPO",false);choose.setOnClickListener(v->chooseTree());sync.addView(choose);Ui.margin(choose,0,14,0,0);TextView clear=Ui.text(this,"Odstrani povezavo z mapo",13,Ui.RED);clear.setPadding(0,Ui.dp(this,15),0,0);clear.setOnClickListener(v->{getSharedPreferences("screenme",0).edit().remove("syncTree").apply();syncStatus.setText(syncText());});sync.addView(clear);turbo.setOnCheckedChangeListener((v,on)->{getSharedPreferences("screenme",0).edit().putBoolean("turbo",on).apply();syncStatus.setText(syncText());if(on&&getSharedPreferences("screenme",0).getString("syncTree","").isEmpty())Ui.toast(this,"Za Turbo izberi mapo ScreenMe Turbo na Google Drive.");});root.addView(sync);Ui.margin(sync,0,8,0,18);
-        root.addView(Ui.label(this,"POSODOBITVE"));LinearLayout updates=Ui.card(this);updates.addView(Ui.text(this,"Vir različic",15,Ui.INK));update=new EditText(this);update.setSingleLine();update.setText(getSharedPreferences("screenme",0).getString("updateUrl",UpdateReceiver.DEFAULT_URL));update.setTextSize(13);updates.addView(update);TextView check=Ui.button(this,"PREVERI ZDAJ",false);check.setOnClickListener(v->{save(false);sendBroadcast(new Intent(this,UpdateReceiver.class));Ui.toast(this,"Preverjanje posodobitev poteka …");});updates.addView(check);Ui.margin(check,0,10,0,0);updates.addView(Ui.text(this,"ScreenMe preveri novo različico približno vsakih 6 ur, tudi ko ni odprt.",12,Ui.MUTED));root.addView(updates);Ui.margin(updates,0,8,0,18);
-        root.addView(Ui.label(this,"APLIKACIJA"));LinearLayout app=Ui.card(this);app.addView(Ui.text(this,versionText(),15,Ui.INK));app.addView(Ui.text(this,"Zapisi: "+RecordItem.list(getExternalFilesDir(null),null).size()+"  ·  Android "+Build.VERSION.RELEASE,13,Ui.MUTED));TextView intro=Ui.text(this,"Ponovno prikaži uvod",14,Ui.PURPLE);intro.setPadding(0,Ui.dp(this,16),0,0);intro.setOnClickListener(v->{getSharedPreferences("screenme",0).edit().putBoolean("onboarded",false).apply();startActivity(new Intent(this,OnboardingActivity.class));});app.addView(intro);root.addView(app);Ui.margin(app,0,8,0,18);TextView save=Ui.button(this,"SHRANI NASTAVITVE",true);save.setOnClickListener(v->{save(true);finish();});root.addView(save);setContentView(scroll);}
-    String versionText(){try{android.content.pm.PackageInfo i=getPackageManager().getPackageInfo(getPackageName(),0);long code=Build.VERSION.SDK_INT>=28?i.getLongVersionCode():i.versionCode;return "ScreenMe "+i.versionName+"  ·  build "+code;}catch(Exception e){return "ScreenMe";}}
-    String syncText(){boolean folder=!getSharedPreferences("screenme",0).getString("syncTree","").isEmpty(),on=getSharedPreferences("screenme",0).getBoolean("turbo",false);if(!folder)return on?"⚠  Turbo čaka na mapo ScreenMe Turbo.":"Oblačna mapa še ni izbrana. Uporabi Google Drive, Dropbox ali drugo mapo ponudnika dokumentov.";return on?"⚡  Turbo je povezan. Novi zapisi gredo v skupno delovno vrsto.":"✓  Sinhronizacija je nastavljena. Novi zapisi se samodejno kopirajo v izbrano mapo.";}
-    void chooseTree(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,TREE);}
-    @Override protected void onActivityResult(int r,int result,Intent data){super.onActivityResult(r,result,data);if(r==TREE&&result==RESULT_OK&&data!=null&&data.getData()!=null){Uri u=data.getData();getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);getSharedPreferences("screenme",0).edit().putString("syncTree",u.toString()).apply();syncStatus.setText(syncText());Ui.toast(this,"Sinhronizacijska mapa je nastavljena");}}
-    void save(boolean toast){int[] sizes={50,62,74};getSharedPreferences("screenme",0).edit().putInt("bubbleSize",sizes[size.getSelectedItemPosition()]).putInt("bubbleColor",color.getSelectedItemPosition()).putBoolean("turbo",turbo!=null&&turbo.isChecked()).putString("updateUrl",update.getText().toString().trim()).apply();if(toast)Ui.toast(this,"Nastavitve so shranjene");}
-    @Override protected void onPause(){super.onPause();if(update!=null)save(false);}
+public class SettingsActivity extends androidx.activity.ComponentActivity {
+    static final int TREE = 77;
+    EditText update;
+    Spinner size, color;
+    TextView syncStatus;
+    Switch turbo;
+    boolean fromOverlay;
+
+    @Override public void onCreate(Bundle b) {
+        super.onCreate(b);
+        fromOverlay = getIntent().getBooleanExtra("fromOverlay", false);
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() { closeSettings(); }
+        });
+        Ui.bars(this);
+        build();
+    }
+
+    void build() {
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(Ui.BG);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(Ui.dp(this, 20), 0, Ui.dp(this, 20), Ui.dp(this, 28));
+        scroll.addView(root);
+
+        TextView nav = Ui.nav(this, "Nastavitve");
+        nav.setOnClickListener(v -> closeSettings());
+        root.addView(nav);
+
+        root.addView(Ui.label(this, "PLAVAJOČI GUMB"));
+        LinearLayout overlay = Ui.card(this);
+        overlay.addView(Ui.text(this, "Velikost gumba", 15, Ui.INK));
+        size = new Spinner(this);
+        String[] sizes = {"Majhen", "Srednji", "Velik"};
+        size.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, sizes));
+        int sp = getSharedPreferences("screenme", 0).getInt("bubbleSize", 62);
+        size.setSelection(sp <= 54 ? 0 : sp >= 70 ? 2 : 1);
+        overlay.addView(size);
+        overlay.addView(Ui.text(this, "Barva gumba", 15, Ui.INK));
+        color = new Spinner(this);
+        color.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Vijolična", "Turkizna", "Koralna"}));
+        color.setSelection(getSharedPreferences("screenme", 0).getInt("bubbleColor", 0));
+        overlay.addView(color);
+        root.addView(overlay);
+        Ui.margin(overlay, 0, 8, 0, 18);
+
+        root.addView(Ui.label(this, "SINHRONIZACIJA IN TURBO"));
+        LinearLayout sync = Ui.card(this);
+        turbo = new Switch(this);
+        turbo.setText(R.string.turbo_mode);
+        turbo.setTextSize(17);
+        turbo.setTextColor(Ui.INK);
+        turbo.setChecked(getSharedPreferences("screenme", 0).getBoolean("turbo", false));
+        sync.addView(turbo, new LinearLayout.LayoutParams(-1, Ui.dp(this, 56)));
+        sync.addView(Ui.text(this,
+                "Novi zapisi postanejo skupna delovna vrsta za Codex. Zahteva oblačno mapo.",
+                13, Ui.MUTED));
+        syncStatus = Ui.text(this, syncText(), 14, Ui.MUTED);
+        sync.addView(syncStatus);
+        Ui.margin(syncStatus, 0, 14, 0, 0);
+        TextView choose = Ui.button(this, "IZBERI OBLAČNO MAPO", false);
+        choose.setOnClickListener(v -> chooseTree());
+        sync.addView(choose);
+        Ui.margin(choose, 0, 14, 0, 0);
+        TextView clear = Ui.text(this, "Odstrani povezavo z mapo", 13, Ui.RED);
+        clear.setPadding(0, Ui.dp(this, 15), 0, 0);
+        clear.setOnClickListener(v -> {
+            getSharedPreferences("screenme", 0).edit().remove("syncTree").apply();
+            syncStatus.setText(syncText());
+        });
+        sync.addView(clear);
+        turbo.setOnCheckedChangeListener((v, on) -> {
+            getSharedPreferences("screenme", 0).edit().putBoolean("turbo", on).apply();
+            syncStatus.setText(syncText());
+            if (on && getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty()) {
+                Ui.toast(this, "Za Turbo izberi mapo ScreenMe Turbo na Google Drive.");
+            }
+        });
+        root.addView(sync);
+        Ui.margin(sync, 0, 8, 0, 18);
+
+        root.addView(Ui.label(this, "POSODOBITVE"));
+        LinearLayout updates = Ui.card(this);
+        updates.addView(Ui.text(this, "Vir različic", 15, Ui.INK));
+        update = new EditText(this);
+        update.setSingleLine();
+        update.setText(getSharedPreferences("screenme", 0)
+                .getString("updateUrl", UpdateReceiver.DEFAULT_URL));
+        update.setTextSize(13);
+        updates.addView(update);
+        TextView check = Ui.button(this, "PREVERI ZDAJ", false);
+        check.setOnClickListener(v -> {
+            save(false);
+            sendBroadcast(new Intent(this, UpdateReceiver.class));
+            Ui.toast(this, "Preverjanje posodobitev poteka …");
+        });
+        updates.addView(check);
+        Ui.margin(check, 0, 10, 0, 0);
+        updates.addView(Ui.text(this,
+                "ScreenMe preveri novo različico približno vsakih 6 ur, tudi ko ni odprt.",
+                12, Ui.MUTED));
+        root.addView(updates);
+        Ui.margin(updates, 0, 8, 0, 18);
+
+        root.addView(Ui.label(this, "APLIKACIJA"));
+        LinearLayout app = Ui.card(this);
+        app.addView(Ui.text(this, versionText(), 15, Ui.INK));
+        app.addView(Ui.text(this,
+                "Zapisi: " + RecordItem.list(getExternalFilesDir(null), null).size()
+                        + "  ·  Android " + Build.VERSION.RELEASE,
+                13, Ui.MUTED));
+        TextView intro = Ui.text(this, "Ponovno prikaži uvod", 14, Ui.PURPLE);
+        intro.setPadding(0, Ui.dp(this, 16), 0, 0);
+        intro.setOnClickListener(v -> {
+            getSharedPreferences("screenme", 0).edit().putBoolean("onboarded", false).apply();
+            startActivity(new Intent(this, OnboardingActivity.class));
+        });
+        app.addView(intro);
+        root.addView(app);
+        Ui.margin(app, 0, 8, 0, 18);
+
+        TextView save = Ui.button(this, "SHRANI NASTAVITVE", true);
+        save.setOnClickListener(v -> {
+            save(true);
+            closeSettings();
+        });
+        root.addView(save);
+        setContentView(scroll);
+    }
+
+    String versionText() {
+        try {
+            android.content.pm.PackageInfo i = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long code = Build.VERSION.SDK_INT >= 28 ? i.getLongVersionCode() : i.versionCode;
+            return "ScreenMe " + i.versionName + "  ·  build " + code;
+        } catch (Exception e) {
+            return "ScreenMe";
+        }
+    }
+
+    String syncText() {
+        boolean folder = !getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty();
+        boolean on = getSharedPreferences("screenme", 0).getBoolean("turbo", false);
+        if (!folder) {
+            return on ? "⚠  Turbo čaka na mapo ScreenMe Turbo."
+                    : "Oblačna mapa še ni izbrana. Uporabi Google Drive, Dropbox ali drugo mapo ponudnika dokumentov.";
+        }
+        return on ? "⚡  Turbo je povezan. Novi zapisi gredo v skupno delovno vrsto."
+                : "✓  Sinhronizacija je nastavljena. Novi zapisi se samodejno kopirajo v izbrano mapo.";
+    }
+
+    void chooseTree() {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(i, TREE);
+    }
+
+    @Override protected void onActivityResult(int r, int result, Intent data) {
+        super.onActivityResult(r, result, data);
+        if (r == TREE && result == RESULT_OK && data != null && data.getData() != null) {
+            Uri u = data.getData();
+            getContentResolver().takePersistableUriPermission(u,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getSharedPreferences("screenme", 0).edit().putString("syncTree", u.toString()).apply();
+            syncStatus.setText(syncText());
+            Ui.toast(this, "Sinhronizacijska mapa je nastavljena");
+        }
+    }
+
+    void save(boolean toast) {
+        int[] sizes = {50, 62, 74};
+        getSharedPreferences("screenme", 0).edit()
+                .putInt("bubbleSize", sizes[size.getSelectedItemPosition()])
+                .putInt("bubbleColor", color.getSelectedItemPosition())
+                .putBoolean("turbo", turbo != null && turbo.isChecked())
+                .putString("updateUrl", update.getText().toString().trim())
+                .apply();
+        if (toast) Ui.toast(this, "Nastavitve so shranjene");
+    }
+
+    void closeSettings() {
+        if (fromOverlay) moveTaskToBack(true);
+        finish();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (fromOverlay) OverlayService.setUiHidden(true);
+    }
+
+    @Override protected void onPause() {
+        if (fromOverlay) OverlayService.setUiHidden(false);
+        if (update != null) save(false);
+        super.onPause();
+    }
 }

@@ -29,7 +29,7 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
     static final int SPEECH = 88;
     File dir;
     boolean edited;
-    EditText title, note;
+    EditText note;
     Spinner severity;
 
     @Override public void onCreate(Bundle b) {
@@ -78,13 +78,6 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
         root.addView(preview);
 
         LinearLayout form = Ui.card(this);
-        form.addView(Ui.label(this, "NASLOV NAPAKE"));
-        title = new EditText(this);
-        title.setHint("Kratek in jasen naslov");
-        title.setSingleLine();
-        title.setTextSize(17);
-        form.addView(title, new LinearLayout.LayoutParams(-1, Ui.dp(this, 56)));
-
         form.addView(Ui.label(this, "RESNOST"));
         severity = new Spinner(this);
         severity.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
@@ -131,7 +124,7 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
             return insets;
         });
         setContentView(page);
-        title.requestFocus();
+        note.requestFocus();
     }
 
     void dictate() {
@@ -166,19 +159,14 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
     }
 
     void save() {
-        String t = title.getText().toString().trim();
         String n = note.getText().toString().trim();
         String sev = severity.getSelectedItem().toString();
-        if (t.isEmpty()) {
-            title.setError("Dodaj kratek naslov");
-            title.requestFocus();
-            return;
-        }
         if (n.isEmpty()) {
             note.setError("Dodaj opis napake");
             note.requestFocus();
             return;
         }
+        String t = automaticTitle(n);
         String project = ProjectStore.current(this);
         String md = "# " + t + "\n\n**Projekt:** " + project + "  \n**Resnost:** " + sev
                 + "\n\n## Opis\n\n" + n + "\n";
@@ -190,6 +178,14 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
         Ui.toast(this, turbo ? (folder ? "Zapis je poslan v Turbo vrsto"
                 : "Zapis je lokalen · Turbo čaka na mapo") : "Zapis je shranjen");
         returnToSource();
+    }
+
+    String automaticTitle(String text) {
+        String value = text.replaceAll("\\s+", " ").trim();
+        int sentence = value.indexOf('.');
+        if (sentence >= 8 && sentence <= 72) value = value.substring(0, sentence);
+        if (value.length() > 72) value = value.substring(0, 71).trim() + "…";
+        return value;
     }
 
     void returnToSource() {

@@ -1,5 +1,12 @@
 # Dnevnik sprememb
 
+## 0.3.2 — 2026-08-26
+
+- Miren dolg pritisk plavajočega gumba odpre nastavitve ScreenMe.
+- Navaden poteg še vedno takoj premika gumb brez čakanja na dolg pritisk.
+- Odstranjeno je obvezno polje za naslov napake; naslov zapisa se izdela samodejno iz opisa.
+- Opis se odpre neposredno za pisanje, zato dodatno pomikanje med polji ni potrebno.
+
 ## 0.3.1 — 2026-08-26
 
 - Prvi dotik plavajoče ikone zdaj takoj pokaže barvni odziv.
