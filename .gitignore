@@ -1,0 +1,12 @@
+.gradle/
+.idea/
+**/build/
+local.properties
+keystore.properties
+keystore/
+*.png
+!app/src/main/res/**/*.png
+/ui.xml
+/noteui.xml
+/proj*.xml
+/release/

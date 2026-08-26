@@ -1,0 +1,10 @@
+package si.screenme.app;
+
+import android.app.*;import android.content.*;import android.graphics.*;import android.os.*;import android.view.*;import android.widget.*;import java.io.*;
+
+public class NoteActivity extends Activity{
+    File dir;boolean edited;EditText note;
+    @Override public void onCreate(Bundle b){super.onCreate(b);dir=new File(getIntent().getStringExtra("dir"));edited=getIntent().getBooleanExtra("edited",false);LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,20,20,20);TextView title=new TextView(this);title.setText("Opomba");title.setTextSize(28);root.addView(title);ImageView image=new ImageView(this);image.setScaleType(ImageView.ScaleType.FIT_CENTER);File pic=new File(dir,edited?"annotated.png":"screenshot.png");image.setImageBitmap(BitmapFactory.decodeFile(pic.getAbsolutePath()));root.addView(image,new LinearLayout.LayoutParams(-1,0,1));note=new EditText(this);note.setHint("Kaj je narobe? Koraki, pričakovano in dejansko vedenje …");note.setGravity(Gravity.TOP);note.setMinLines(4);root.addView(note);LinearLayout row=new LinearLayout(this);Button cancel=new Button(this);cancel.setText("PREKLIČI");cancel.setOnClickListener(v->{EditorActivity.delete(dir);finish();});Button save=new Button(this);save.setText("SHRANI OPOMBO");save.setOnClickListener(v->save());row.addView(cancel,new LinearLayout.LayoutParams(0,-2,1));row.addView(save,new LinearLayout.LayoutParams(0,-2,2));root.addView(row);setContentView(root);}
+    void save(){String n=note.getText().toString().trim();if(n.isEmpty()){note.setError("Vpiši opombo");return;}String p=getSharedPreferences("screenme",0).getString("profile","Default");Storage.text(new File(dir,"note.md"),"# "+p+"\n\n"+n+"\n");Storage.text(new File(dir,"metadata.json"),Storage.json(p,n,edited));Storage.sync(this,dir);Toast.makeText(this,"Opomba je shranjena",Toast.LENGTH_SHORT).show();finish();}
+    @Override public void onBackPressed(){new AlertDialog.Builder(this).setMessage("Zavrnem ta posnetek?").setPositiveButton("Zavrzi",(d,w)->{EditorActivity.delete(dir);finish();}).setNegativeButton("Nazaj",null).show();}
+}

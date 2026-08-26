@@ -1,0 +1,33 @@
+plugins { id 'com.android.application' }
+
+def signingProps = new Properties()
+def signingFile = rootProject.file('keystore.properties')
+if (signingFile.exists()) signingFile.withInputStream { signingProps.load(it) }
+
+android {
+    namespace 'si.screenme.app'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'si.screenme.app'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0'
+    }
+    signingConfigs {
+        release {
+            if (signingFile.exists()) {
+                storeFile rootProject.file(signingProps['storeFile'])
+                storePassword signingProps['storePassword']
+                keyAlias signingProps['keyAlias']
+                keyPassword signingProps['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+}

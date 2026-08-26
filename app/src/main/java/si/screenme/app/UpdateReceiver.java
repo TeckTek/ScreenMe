@@ -1,0 +1,10 @@
+package si.screenme.app;
+import android.app.*;import android.content.*;import android.net.*;import android.os.*;import org.json.*;import java.io.*;import java.net.*;import java.nio.charset.StandardCharsets;
+
+public class UpdateReceiver extends BroadcastReceiver{
+    static final String CH="screenme_updates";
+    static final String DEFAULT_URL="https://raw.githubusercontent.com/TeckTek/ScreenMe/main/update.json";
+    @Override public void onReceive(Context c,Intent i){String u=c.getSharedPreferences("screenme",0).getString("updateUrl",DEFAULT_URL);if(u.isEmpty())return;PendingResult pending=goAsync();new Thread(()->{try{HttpURLConnection h=(HttpURLConnection)new URL(u).openConnection();h.setConnectTimeout(12000);h.setReadTimeout(12000);h.setRequestProperty("Accept","application/json");try(InputStream in=h.getInputStream()){String raw=new String(read(in),StandardCharsets.UTF_8);JSONObject j=new JSONObject(raw);long remote=j.getLong("versionCode");long local=c.getPackageManager().getPackageInfo(c.getPackageName(),0).getLongVersionCode();if(remote>local)notify(c,j.optString("versionName","nova"),j.getString("apkUrl"));}}catch(Exception ignored){}finally{pending.finish();}}).start();}
+    static byte[] read(InputStream in)throws IOException{ByteArrayOutputStream o=new ByteArrayOutputStream();byte[] b=new byte[4096];int n;while((n=in.read(b))>0)o.write(b,0,n);return o.toByteArray();}
+    static void notify(Context c,String version,String url){NotificationManager m=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);if(Build.VERSION.SDK_INT>=26)m.createNotificationChannel(new NotificationChannel(CH,"Posodobitve ScreenMe",NotificationManager.IMPORTANCE_HIGH));Intent view=new Intent(Intent.ACTION_VIEW,Uri.parse(url));PendingIntent p=PendingIntent.getActivity(c,92,view,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);Notification n=new Notification.Builder(c,CH).setSmallIcon(android.R.drawable.stat_sys_download_done).setContentTitle("Na voljo je ScreenMe "+version).setContentText("Dotakni se za prenos posodobitve").setAutoCancel(true).setContentIntent(p).build();m.notify(92,n);}
+}
