@@ -4,15 +4,16 @@ import android.app.*;import android.content.*;import android.graphics.*;import a
 
 public class EditorActivity extends Activity {
     DrawView draw; File dir;
-    @Override public void onCreate(Bundle b){super.onCreate(b);dir=new File(getIntent().getStringExtra("dir"));Bitmap src=BitmapFactory.decodeFile(new File(dir,"screenshot.png").getAbsolutePath());
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.DKGRAY);
-        LinearLayout bar=new LinearLayout(this);String[] names={"✎ Svinčnik","○ Elipsa","Barva","↶","↷"};for(String n:names){Button x=new Button(this);x.setText(n);bar.addView(x,new LinearLayout.LayoutParams(0,-2,1));if(n.startsWith("✎"))x.setOnClickListener(v->draw.tool=0);else if(n.startsWith("○"))x.setOnClickListener(v->draw.tool=1);else if(n.equals("Barva"))x.setOnClickListener(v->colors());else if(n.equals("↶"))x.setOnClickListener(v->draw.undo());else x.setOnClickListener(v->draw.redo());}root.addView(bar);
+    @Override public void onCreate(Bundle b){super.onCreate(b);dir=new File(getIntent().getStringExtra("dir"));Bitmap src=BitmapFactory.decodeFile(new File(dir,"screenshot.png").getAbsolutePath());if(src==null){Toast.makeText(this,"Posnetka ni mogoče odpreti.",Toast.LENGTH_LONG).show();finish();return;}
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.DKGRAY);root.setPadding(0,dp(24),0,dp(24));
+        LinearLayout bar=new LinearLayout(this);String[] names={"SVINČNIK","ELIPSA","BARVA","UNDO","REDO"};for(String n:names){Button x=new Button(this);x.setText(n);x.setTextSize(10);x.setSingleLine();bar.addView(x,new LinearLayout.LayoutParams(0,-2,1));if(n.equals("SVINČNIK"))x.setOnClickListener(v->draw.tool=0);else if(n.equals("ELIPSA"))x.setOnClickListener(v->draw.tool=1);else if(n.equals("BARVA"))x.setOnClickListener(v->colors());else if(n.equals("UNDO"))x.setOnClickListener(v->draw.undo());else x.setOnClickListener(v->draw.redo());}root.addView(bar);
         draw=new DrawView(this,src);root.addView(draw,new LinearLayout.LayoutParams(-1,0,1));
         LinearLayout actions=new LinearLayout(this);Button cancel=new Button(this);cancel.setText("PREKLIČI");cancel.setOnClickListener(v->{delete(dir);finish();});Button save=new Button(this);save.setText("SHRANI IN DODAJ OPOMBO");save.setOnClickListener(v->{Storage.bitmap(draw.flatten(),new File(dir,"annotated.png"));startActivity(new Intent(this,NoteActivity.class).putExtra("dir",dir.getAbsolutePath()).putExtra("edited",true));finish();});actions.addView(cancel,new LinearLayout.LayoutParams(0,-2,1));actions.addView(save,new LinearLayout.LayoutParams(0,-2,2));root.addView(actions);setContentView(root);
     }
     void colors(){final int[] cs={Color.RED,Color.YELLOW,Color.GREEN,Color.CYAN,Color.BLUE,Color.MAGENTA,Color.BLACK,Color.WHITE};LinearLayout l=new LinearLayout(this);for(int c:cs){Button b=new Button(this);b.setBackgroundColor(c);b.setOnClickListener(v->{draw.color=((ColorDrawable)v.getBackground()).getColor();((Dialog)v.getTag()).dismiss();});l.addView(b,new LinearLayout.LayoutParams(0,80,1));}Dialog d=new AlertDialog.Builder(this).setTitle("Izberi barvo").setView(l).create();for(int i=0;i<l.getChildCount();i++)l.getChildAt(i).setTag(d);d.show();}
     static void delete(File f){File[] a=f.listFiles();if(a!=null)for(File x:a)x.delete();f.delete();}
     @Override public void onBackPressed(){new AlertDialog.Builder(this).setMessage("Zavrnem ta posnetek?").setPositiveButton("Zavrzi",(d,w)->{delete(dir);finish();}).setNegativeButton("Nazaj",null).show();}
+    int dp(int n){return(int)(n*getResources().getDisplayMetrics().density+.5f);}
 
     static class DrawView extends View{
         Bitmap base,layer;Canvas canvas;Paint paint=new Paint(3);Path path;float sx,sy,cx,cy;int tool=0,color=Color.RED;ArrayList<Bitmap> undo=new ArrayList<>(),redo=new ArrayList<>();
