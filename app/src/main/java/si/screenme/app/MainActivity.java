@@ -1,68 +1,27 @@
 package si.screenme.app;
 
-import android.Manifest;
-import android.app.*;
-import android.content.*;
-import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.media.projection.MediaProjectionManager;
-import android.net.Uri;
-import android.os.*;
-import android.provider.Settings;
-import android.view.*;
-import android.widget.*;
-import java.util.*;
+import android.Manifest;import android.app.*;import android.content.*;import android.content.pm.PackageManager;import android.graphics.*;import android.media.projection.MediaProjectionManager;import android.net.Uri;import android.os.*;import android.provider.Settings;import android.view.*;import android.widget.*;import java.util.*;
 
 public class MainActivity extends Activity {
-    private static final int CAPTURE = 42;
-    private EditText profile, updateUrl;
-
-    @Override public void onCreate(Bundle b) {
-        super.onCreate(b); buildUi(); UpdateScheduler.schedule(this);
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 8);
+    static final int CAPTURE=42;Spinner projects;ArrayAdapter<String> projectAdapter;TextView start,status;boolean firstResume=true;
+    @Override public void onCreate(Bundle b){super.onCreate(b);Ui.bars(this);UpdateScheduler.schedule(this);if(!getSharedPreferences("screenme",0).getBoolean("onboarded",false))startActivity(new Intent(this,OnboardingActivity.class));build();}
+    @Override protected void onResume(){super.onResume();if(!firstResume)build();firstResume=false;}
+    void build(){
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(Ui.BG);LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(Ui.dp(this,20),Ui.dp(this,20),Ui.dp(this,20),Ui.dp(this,28));Ui.insets(root);scroll.addView(root);
+        LinearLayout hero=Ui.card(this);hero.setBackground(Ui.shape(Ui.DARK,24,this));LinearLayout brand=Ui.row(this);ImageView logo=new ImageView(this);logo.setImageResource(R.mipmap.ic_launcher);brand.addView(logo,new LinearLayout.LayoutParams(Ui.dp(this,58),Ui.dp(this,58)));LinearLayout names=new LinearLayout(this);names.setOrientation(LinearLayout.VERTICAL);TextView name=Ui.text(this,"ScreenMe",28,Color.WHITE);name.setTypeface(Typeface.DEFAULT,Typeface.BOLD);names.addView(name);names.addView(Ui.text(this,"Capture. Mark. Fix.",13,0xFFBEB5E7));brand.addView(names,Ui.weight(0,-2,1));Ui.margin(names,12,0,0,0);status=Ui.text(this,OverlayService.running?"●  ZAJEM AKTIVEN":"●  PRIPRAVLJEN",11,OverlayService.running?0xFF6FE1AC:0xFFFFD66B);status.setTypeface(Typeface.DEFAULT,Typeface.BOLD);brand.addView(status);hero.addView(brand);TextView desc=Ui.text(this,"Najhitrejša pot od opažene napake do jasnega poročila.",16,0xFFE8E3F8);hero.addView(desc);Ui.margin(desc,0,18,0,4);root.addView(hero);
+        TextView label=Ui.label(this,"AKTIVNI PROJEKT");root.addView(label);Ui.margin(label,2,26,0,8);LinearLayout projectCard=Ui.card(this);LinearLayout pr=Ui.row(this);projects=new Spinner(this);reloadProjects();pr.addView(projects,Ui.weight(0,Ui.dp(this,52),1));TextView plus=Ui.button(this,"+ NOV",false);plus.setOnClickListener(v->newProject());pr.addView(plus,new LinearLayout.LayoutParams(Ui.dp(this,100),Ui.dp(this,52)));Ui.margin(plus,10,0,0,0);projectCard.addView(pr);TextView manage=Ui.text(this,"Upravljaj projekte",13,Ui.PURPLE);manage.setPadding(0,Ui.dp(this,14),0,0);manage.setOnClickListener(v->projectMenu());projectCard.addView(manage);root.addView(projectCard);
+        LinearLayout stats=Ui.row(this);LinearLayout saved=stat("SHRANJENI ZAPISI",String.valueOf(records().size()));stats.addView(saved,Ui.weight(0,-2,1));LinearLayout sync=stat("SINHRONIZACIJA",getSharedPreferences("screenme",0).getString("syncTree","").isEmpty()?"Ni nastavljena":"Aktivna");stats.addView(sync,Ui.weight(0,-2,1));Ui.margin(sync,10,0,0,0);root.addView(stats);Ui.margin(stats,0,14,0,0);
+        start=Ui.button(this,OverlayService.running?"ZAJEM JE AKTIVEN":"ZAČNI ZAJEM",true);start.setTextSize(16);start.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_capture,0,0,0);start.setCompoundDrawablePadding(Ui.dp(this,10));start.setOnClickListener(v->{if(OverlayService.running)moveTaskToBack(true);else begin();});root.addView(start);Ui.margin(start,0,20,0,0);
+        LinearLayout actions=Ui.row(this);TextView library=Ui.button(this,"ZAPISI",false);library.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_library,0,0,0);library.setCompoundDrawablePadding(Ui.dp(this,8));library.setOnClickListener(v->startActivity(new Intent(this,RecordsActivity.class)));actions.addView(library,Ui.weight(0,Ui.dp(this,54),1));TextView settings=Ui.button(this,"NASTAVITVE",false);settings.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_settings,0,0,0);settings.setCompoundDrawablePadding(Ui.dp(this,8));settings.setOnClickListener(v->startActivity(new Intent(this,SettingsActivity.class)));actions.addView(settings,Ui.weight(0,Ui.dp(this,54),1));Ui.margin(settings,10,0,0,0);root.addView(actions);Ui.margin(actions,0,10,0,0);
+        LinearLayout how=Ui.card(this);how.addView(Ui.title(this,"Kako deluje"));how.addView(step("1","En dotik","Posnetek zaslona in hitra opomba."));how.addView(step("2","Dvojni dotik","Označi s svinčnikom, oblikami ali označevalnikom."));how.addView(step("3","Dolg pritisk","Premakni gumb ali ga spusti na X za izhod."));root.addView(how);Ui.margin(how,0,22,0,0);setContentView(scroll);
+        if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED&&getSharedPreferences("screenme",0).getBoolean("onboarded",false))requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},8);
     }
-
-    private void buildUi() {
-        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(24),dp(36),dp(24),dp(24));
-        TextView title = text("ScreenMe", 32); title.setTextColor(Color.rgb(103,80,164)); root.addView(title);
-        root.addView(text("Hitro zabeleži napako s posnetkom zaslona in opombo.", 16), lp(-1,-2,0,0,0,24));
-        root.addView(text("Profil projekta", 14));
-        profile = new EditText(this); profile.setHint("npr. Knjizni-Svet"); profile.setSingleLine();
-        profile.setText(getPreferences(0).getString("profile", "")); root.addView(profile, lp(-1,-2,0,8,0,16));
-        root.addView(text("Vir posodobitev (JSON URL, neobvezno)", 14));
-        updateUrl=new EditText(this);updateUrl.setHint("https://…/screenme-update.json");updateUrl.setSingleLine();updateUrl.setText(getSharedPreferences("screenme",0).getString("updateUrl",UpdateReceiver.DEFAULT_URL));root.addView(updateUrl,lp(-1,-2,0,8,0,16));
-        Button start = new Button(this); start.setText("ZAČNI ZAJEM"); start.setOnClickListener(v -> begin()); root.addView(start);
-        Button records = new Button(this); records.setText("IZBERI MAPO ZA SINHRONIZACIJO"); records.setOnClickListener(v -> {
-            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION); startActivityForResult(i, 77);
-        }); root.addView(records);
-        TextView info = text("En klik: posnetek + opomba\nDvojni klik: posnetek + risanje + opomba\nDolg pritisk: premikanje gumba", 14);
-        root.addView(info, lp(-1,-2,0,24,0,0)); setContentView(root);
-    }
-
-    private void begin() {
-        String p = profile.getText().toString().trim();
-        if (p.isEmpty()) { profile.setError("Vnesi profil"); return; }
-        getPreferences(0).edit().putString("profile", p).apply();
-        getSharedPreferences("screenme",0).edit().putString("profile", p).apply();
-        getSharedPreferences("screenme",0).edit().putString("updateUrl",updateUrl.getText().toString().trim()).apply();
-        if (!Settings.canDrawOverlays(this)) {
-            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:"+getPackageName())));
-            Toast.makeText(this,"Dovoli prikaz čez druge aplikacije, nato znova pritisni Začni zajem.",Toast.LENGTH_LONG).show(); return;
-        }
-        MediaProjectionManager m = (MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);
-        startActivityForResult(m.createScreenCaptureIntent(), CAPTURE);
-    }
-
-    @Override protected void onActivityResult(int req,int result,Intent data) {
-        super.onActivityResult(req,result,data);
-        if(req==77 && result==RESULT_OK && data!=null && data.getData()!=null){Uri u=data.getData();getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);getSharedPreferences("screenme",0).edit().putString("syncTree",u.toString()).apply();Toast.makeText(this,"Sinhronizacijska mapa je nastavljena.",Toast.LENGTH_LONG).show();return;}
-        if(req==CAPTURE && result==RESULT_OK && data!=null) {
-            Intent s=new Intent(this,OverlayService.class).putExtra("resultCode",result).putExtra("data",data);
-            startForegroundService(s); Toast.makeText(this,"ScreenMe je pripravljen.",Toast.LENGTH_SHORT).show(); moveTaskToBack(true);
-        }
-    }
-    TextView text(String s,int size){ TextView v=new TextView(this);v.setText(s);v.setTextSize(size);return v; }
-    LinearLayout.LayoutParams lp(int w,int h,int l,int t,int r,int b){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(w,h);p.setMargins(l,t,r,b);return p;}
-    int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
+    LinearLayout stat(String a,String b){LinearLayout c=Ui.card(this);TextView n=Ui.text(this,b,22,Ui.INK);n.setTypeface(Typeface.DEFAULT,Typeface.BOLD);c.addView(n);c.addView(Ui.label(this,a));return c;}
+    LinearLayout step(String n,String title,String body){LinearLayout r=Ui.row(this);TextView badge=Ui.text(this,n,14,Color.WHITE);badge.setGravity(Gravity.CENTER);badge.setTypeface(Typeface.DEFAULT,Typeface.BOLD);badge.setBackground(Ui.shape(Ui.PURPLE,99,this));r.addView(badge,new LinearLayout.LayoutParams(Ui.dp(this,34),Ui.dp(this,34)));LinearLayout t=new LinearLayout(this);t.setOrientation(LinearLayout.VERTICAL);TextView a=Ui.text(this,title,15,Ui.INK);a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);t.addView(a);t.addView(Ui.text(this,body,13,Ui.MUTED));r.addView(t,Ui.weight(0,-2,1));Ui.margin(t,12,0,0,0);Ui.margin(r,0,16,0,0);return r;}
+    ArrayList<RecordItem> records(){return RecordItem.list(getExternalFilesDir(null),null);}
+    void reloadProjects(){ArrayList<String>a=ProjectStore.all(this);if(a.isEmpty())a.add("Moj prvi projekt");projectAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,a);projects.setAdapter(projectAdapter);String cur=ProjectStore.current(this);projects.setSelection(Math.max(0,a.indexOf(cur)));projects.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onNothingSelected(android.widget.AdapterView<?>p){}public void onItemSelected(android.widget.AdapterView<?>p,View v,int pos,long id){ProjectStore.select(MainActivity.this,projectAdapter.getItem(pos));}});}
+    void newProject(){EditText e=new EditText(this);e.setHint("Ime projekta");e.setSingleLine();e.setPadding(Ui.dp(this,16),Ui.dp(this,8),Ui.dp(this,16),Ui.dp(this,8));new AlertDialog.Builder(this).setTitle("Nov projekt").setMessage("Zapisi bodo samodejno ločeni po projektu.").setView(e).setPositiveButton("Ustvari",(d,w)->{String p=e.getText().toString().trim();if(!p.isEmpty()){ProjectStore.select(this,p);build();}}).setNegativeButton("Prekliči",null).show();}
+    void projectMenu(){String p=ProjectStore.current(this);new AlertDialog.Builder(this).setTitle(p).setItems(new String[]{"Nov projekt","Odstrani projekt iz seznama"},(d,w)->{if(w==0)newProject();else new AlertDialog.Builder(this).setTitle("Odstranim projekt?").setMessage("Shranjeni posnetki ne bodo izbrisani.").setPositiveButton("Odstrani",(x,y)->{ProjectStore.remove(this,p);build();}).setNegativeButton("Prekliči",null).show();}).show();}
+    void begin(){String p=ProjectStore.current(this);if(p.isEmpty()){newProject();return;}ProjectStore.select(this,p);if(!Settings.canDrawOverlays(this)){startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+getPackageName())));Ui.toast(this,"Dovoli prikaz čez druge aplikacije, nato znova pritisni Začni zajem.");return;}MediaProjectionManager m=(MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);startActivityForResult(m.createScreenCaptureIntent(),CAPTURE);}
+    @Override protected void onActivityResult(int req,int result,Intent data){super.onActivityResult(req,result,data);if(req==CAPTURE&&result==RESULT_OK&&data!=null){startForegroundService(new Intent(this,OverlayService.class).putExtra("resultCode",result).putExtra("data",data));Ui.toast(this,"ScreenMe je pripravljen");moveTaskToBack(true);}}
 }
