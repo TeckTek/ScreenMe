@@ -125,12 +125,27 @@ public class ProjectsActivity extends androidx.activity.ComponentActivity {
     }
 
     void deleteProject(String project, int count) {
+        if (count == 0) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Izbrišem projekt?")
+                    .setMessage("Projekt »" + project
+                            + "« nima lokalnih zapisov in bo odstranjen s seznama.")
+                    .setPositiveButton("Izbriši projekt", (dialog, which) -> {
+                        if (!ProjectStore.deleteWithRecords(this, project)) {
+                            Ui.toast(this, "Projekta ni bilo mogoče izbrisati");
+                            return;
+                        }
+                        Ui.toast(this, "Projekt je izbrisan");
+                        build();
+                    })
+                    .setNegativeButton("Prekliči", null)
+                    .show();
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Odstrani projekt")
-                .setMessage(count == 0
-                        ? "Projekt »" + project + "« nima lokalnih zapisov."
-                        : "Projekt »" + project + "« vsebuje " + count
-                                + " lokalnih zapisov. Kaj želiš narediti?")
+                .setMessage("Projekt »" + project + "« vsebuje " + count
+                        + " lokalnih zapisov. Kaj želiš narediti?")
                 .setItems(new String[]{
                         "Odstrani samo s seznama",
                         "Izbriši projekt in vse lokalne zapise"

@@ -1,5 +1,17 @@
 # Dnevnik sprememb
 
+## 0.4.1 — 2026-08-27
+
+- Preverjanje posodobitev se izvede takoj ob odprtju ScreenMe in približno vsake tri ure prek trajnega Androidovega opravila.
+- Napake preverjanja niso več skrite; v nastavitvah je vedno prikazano zadnje stanje.
+- Nova različica je vidna tudi kot kartica na domačem zaslonu, zato je ne skrije manjkajoče dovoljenje za obvestila.
+- Dodana sta razlaga in neposreden gumb za dovoljenje za obvestila.
+- Pri prepoznavi aplikacije so dodani Samsungovi koraki za zatemnjeno stikalo, omejene nastavitve in Samodejno blokiranje.
+- Glavni postopek za omejene nastavitve je preverjen na Galaxy S25 Ultra in tako označen tudi v aplikaciji.
+- Dodani so neposredni gumbi do dostopa do uporabe, podatkov ScreenMe ter varnostnih nastavitev.
+- Zajem na nespremenjenem zaslonu osveži površino MediaProjection in ob manjkajočem okvirju samodejno poskusi do trikrat.
+- Prazen projekt je zdaj mogoče izbrisati z enim jasnim potrditvenim gumbom; po brisanju zadnjega projekta se začasni »Moj prvi projekt« ne ustvari znova.
+
 ## 0.4.0 — 2026-08-27
 
 - Dolgi pritisk plavajočega gumba zdaj privzeto odpre domači zaslon ScreenMe.

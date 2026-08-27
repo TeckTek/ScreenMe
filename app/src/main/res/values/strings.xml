@@ -6,4 +6,7 @@
     <string name="auto_project_manual">Ročna izbira projekta ostane aktivna.</string>
     <string name="auto_project_ready">✓ Prepoznava je dovoljena in pripravljena.</string>
     <string name="auto_project_permission_needed">Za prepoznavo v sistemskih nastavitvah dovoli dostop do uporabe.</string>
+    <string name="update_check_now">PREVERI ZDAJ</string>
+    <string name="update_checking">PREVERJAM …</string>
+    <string name="update_connecting">Povezujem se z virom različic …</string>
 </resources>

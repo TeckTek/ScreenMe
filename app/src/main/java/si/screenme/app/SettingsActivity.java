@@ -1,9 +1,12 @@
 package si.screenme.app;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -16,7 +19,7 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
     static final int TREE = 77;
     EditText update;
     Spinner size, color, singleAction, doubleAction, longAction;
-    TextView syncStatus, usageStatus;
+    TextView syncStatus, usageStatus, updateStatus, notificationStatus;
     Switch turbo, autoProject;
     boolean fromOverlay;
 
@@ -91,7 +94,10 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         usageStatus = Ui.text(this, "", 13, Ui.MUTED);
         detection.addView(usageStatus);
         Ui.margin(usageStatus, 0, 12, 0, 0);
-        TextView usage = Ui.button(this, "DOVOLJENJE ZA PREPOZNAVO", false);
+        detection.addView(Ui.text(this,
+                "Preverjeno na Galaxy S25 Ultra z ročno nameščenim APK-jem:\n1. Spodaj odpri prepoznavo, izberi ScreenMe in tapni zatemnjeno stikalo, da se pokaže sistemsko opozorilo.\n2. Ne zapri Nastavitev. Vrni se v Aplikacije → ScreenMe in izberi Dovoli omejene nastavitve. Nato se vrni na dostop do uporabe in vklopi ScreenMe.\n\nČe možnosti ni, v Varnost in zasebnost → Samodejno blokiranje začasno izklopi Največje omejitve in ponovi korake.",
+                13, Ui.AMBER));
+        TextView usage = Ui.button(this, "1 · SPROŽI SISTEMSKO OPOZORILO", false);
         usage.setOnClickListener(v -> {
             save(false);
             startActivity(new Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS,
@@ -99,6 +105,18 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         });
         detection.addView(usage);
         Ui.margin(usage, 0, 12, 0, 0);
+        TextView restricted = Ui.button(this, "2 · ODPRI PODATKE SCREENME", false);
+        restricted.setOnClickListener(v -> {
+            save(false);
+            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())));
+        });
+        detection.addView(restricted);
+        Ui.margin(restricted, 0, 12, 0, 0);
+        TextView security = Ui.button(this, "VARNOST IN SAMODEJNO BLOKIRANJE", false);
+        security.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_SECURITY_SETTINGS)));
+        detection.addView(security);
+        Ui.margin(security, 0, 12, 0, 0);
         autoProject.setOnCheckedChangeListener((button, on) -> updateUsageStatus());
         updateUsageStatus();
         root.addView(detection);
@@ -148,16 +166,49 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
                 .getString("updateUrl", UpdateReceiver.DEFAULT_URL));
         update.setTextSize(13);
         updates.addView(update);
+        updateStatus = Ui.text(this, UpdateChecker.lastStatus(this), 13, Ui.MUTED);
+        updates.addView(updateStatus);
+        Ui.margin(updateStatus, 0, 12, 0, 0);
         TextView check = Ui.button(this, "PREVERI ZDAJ", false);
         check.setOnClickListener(v -> {
             save(false);
-            sendBroadcast(new Intent(this, UpdateReceiver.class));
-            Ui.toast(this, "Preverjanje posodobitev poteka …");
+            check.setEnabled(false);
+            check.setText(R.string.update_checking);
+            updateStatus.setText(R.string.update_connecting);
+            UpdateChecker.check(this, false, (info, error) -> runOnUiThread(() -> {
+                check.setEnabled(true);
+                check.setText(R.string.update_check_now);
+                updateStatus.setText(UpdateChecker.lastStatus(this));
+                if (error != null) {
+                    Ui.toast(this, "Preverjanje ni uspelo");
+                } else if (info != null
+                        && info.versionCode > UpdateChecker.installedVersionCode(this)) {
+                    new android.app.AlertDialog.Builder(this)
+                            .setTitle("ScreenMe " + info.versionName)
+                            .setMessage("Nova različica je pripravljena za prenos.")
+                            .setPositiveButton("Prenesi",
+                                    (dialog, which) -> UpdateChecker.openDownload(this, info.apkUrl))
+                            .setNegativeButton("Pozneje", null)
+                            .show();
+                } else {
+                    Ui.toast(this, "ScreenMe je posodobljen");
+                }
+            }));
         });
         updates.addView(check);
         Ui.margin(check, 0, 10, 0, 0);
+        notificationStatus = Ui.text(this, notificationText(), 13,
+                UpdateChecker.canNotify(this) ? Ui.GREEN : Ui.AMBER);
+        updates.addView(notificationStatus);
+        Ui.margin(notificationStatus, 0, 14, 0, 0);
+        if (!UpdateChecker.canNotify(this)) {
+            TextView allowNotifications = Ui.button(this, "DOVOLI OBVESTILA", false);
+            allowNotifications.setOnClickListener(v -> requestNotificationAccess());
+            updates.addView(allowNotifications);
+            Ui.margin(allowNotifications, 0, 10, 0, 0);
+        }
         updates.addView(Ui.text(this,
-                "ScreenMe preveri novo različico približno vsakih 6 ur, tudi ko ni odprt.",
+                "ScreenMe preveri takoj ob odprtju in nato približno vsake 3 ure, tudi ko ni odprt.",
                 12, Ui.MUTED));
         root.addView(updates);
         Ui.margin(updates, 0, 8, 0, 18);
@@ -196,6 +247,35 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         } catch (Exception e) {
             return "ScreenMe";
         }
+    }
+
+    String notificationText() {
+        return UpdateChecker.canNotify(this)
+                ? "✓ Opozorila o novih različicah so dovoljena."
+                : "⚠ Opozorila so izklopljena; preverjanje deluje, obvestilo pa se ne more prikazati.";
+    }
+
+    void requestNotificationAccess() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+                && shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 8);
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+                && !getSharedPreferences("screenme", 0)
+                .getBoolean("notificationPrompted", false)) {
+            getSharedPreferences("screenme", 0).edit()
+                    .putBoolean("notificationPrompted", true).apply();
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 8);
+            return;
+        }
+        Intent settings = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+        startActivity(settings);
     }
 
     Spinner actionSpinner(LinearLayout parent, String title, String key, String defaultValue) {
@@ -278,6 +358,11 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         super.onResume();
         if (fromOverlay) OverlayService.setUiHidden(true);
         updateUsageStatus();
+        if (notificationStatus != null) {
+            notificationStatus.setText(notificationText());
+            notificationStatus.setTextColor(UpdateChecker.canNotify(this) ? Ui.GREEN : Ui.AMBER);
+        }
+        if (updateStatus != null) updateStatus.setText(UpdateChecker.lastStatus(this));
     }
 
     @Override protected void onPause() {
