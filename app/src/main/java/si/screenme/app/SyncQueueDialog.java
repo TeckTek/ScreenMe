@@ -54,6 +54,9 @@ final class SyncQueueDialog {
         destination.setBackground(Ui.shape(0xFFF3F0FA, 12, activity));
         panel.addView(destination);
         Ui.margin(destination, 0, 8, 0, 0);
+        TextView cleanup = Ui.text(activity, "", 12, Ui.GREEN);
+        panel.addView(cleanup);
+        Ui.margin(cleanup, 4, 8, 4, 0);
 
         LinearLayout historyHeader = Ui.row(activity);
         TextView historyLabel = Ui.label(activity, "PRENESENE DATOTEKE");
@@ -134,6 +137,23 @@ final class SyncQueueDialog {
             chooseFolder.setText(folder ? "SPREMENI OBLAČNO MAPO" : "NASTAVI OBLAČNO MAPO");
             destination.setText(folder ? "Ciljna mapa  ·  " + Storage.syncDestinationName(activity)
                     : "Izberi mapo, da se bodo novi in obstoječi zapisi prenesli v oblak.");
+            long cleanupTime = prefs.getLong(Storage.PREF_CLEANUP_TIME, 0);
+            int cleanupCount = prefs.getInt(Storage.PREF_CLEANUP_COUNT, 0);
+            if (!folder) {
+                cleanup.setVisibility(View.GONE);
+            } else {
+                cleanup.setVisibility(View.VISIBLE);
+                if (cleanupTime == 0) {
+                    cleanup.setText("✓ Prazne mape po neuspelem prenosu se čistijo samodejno.");
+                    cleanup.setTextColor(Ui.GREEN);
+                } else {
+                    String checked = new SimpleDateFormat("dd. MMM · HH:mm", Locale.getDefault())
+                            .format(new Date(cleanupTime));
+                    cleanup.setText("✓ Čiščenje po prenosu preverjeno " + checked
+                            + " · odstranjenih: " + cleanupCount);
+                    cleanup.setTextColor(Ui.GREEN);
+                }
+            }
             if (!folder) {
                 state.setText("Oblačna mapa ni nastavljena");
                 state.setTextColor(Ui.AMBER);

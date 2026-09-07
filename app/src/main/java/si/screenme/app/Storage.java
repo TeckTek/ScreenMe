@@ -37,6 +37,8 @@ final class Storage {
     static final String PREF_FILE_BYTES = "syncCurrentFileBytes";
     static final String PREF_FILE_SIZE = "syncCurrentFileSize";
     static final String PREF_HISTORY = "syncHistory";
+    static final String PREF_CLEANUP_COUNT = "syncCleanupCount";
+    static final String PREF_CLEANUP_TIME = "syncCleanupTime";
     static final String ACTION_SYNC_STATUS = "si.screenme.app.SYNC_STATUS";
     private static final String PENDING_FILE = ".sync-pending";
     private static final Object SYNC_LOCK = new Object();
@@ -46,6 +48,16 @@ final class Storage {
     static final class SyncResult {
         int succeeded;
         int failed;
+    }
+
+    private static final class RemoteDirectory {
+        final Uri uri;
+        final boolean created;
+
+        RemoteDirectory(Uri uri, boolean created) {
+            this.uri = uri;
+            this.created = created;
+        }
     }
 
     static final class HistoryEntry {
@@ -158,6 +170,7 @@ final class Storage {
                         .putInt(PREF_BATCH_DONE, 0).apply();
             }
             String lastError = "";
+            int[] cleaned = new int[]{0};
             for (File record : pending) {
                 if ((stopCheck != null && stopCheck.stopped())
                         || !SyncScheduler.isRunning(context)) break;
@@ -167,7 +180,7 @@ final class Storage {
                         .putLong(PREF_FILE_SIZE, 0).remove(PREF_CURRENT_FILE).apply();
                 broadcastStatus(context);
                 try {
-                    syncRecordWithRetries(context, Uri.parse(raw), record, stopCheck);
+                    syncRecordWithRetries(context, Uri.parse(raw), record, stopCheck, cleaned);
                     if ((stopCheck != null && stopCheck.stopped())
                             || !SyncScheduler.isRunning(context)) break;
                     File marker = new File(record, PENDING_FILE);
@@ -191,6 +204,11 @@ final class Storage {
                     result.failed++;
                     lastError = readable(error);
                 }
+            }
+            if ((stopCheck == null || !stopCheck.stopped())
+                    && SyncScheduler.isRunning(context)) {
+                prefs.edit().putInt(PREF_CLEANUP_COUNT, cleaned[0])
+                        .putLong(PREF_CLEANUP_TIME, System.currentTimeMillis()).apply();
             }
             SharedPreferences.Editor edit = prefs.edit()
                     .putInt(PREF_PENDING, countPending(context));
@@ -346,7 +364,12 @@ final class Storage {
                 .putInt(PREF_PENDING, countPending(context)).apply();
     }
 
-    private static void syncRecord(Context context, Uri tree, File record) throws Exception {
+    private static void syncRecord(Context context, Uri tree, File record,
+                                   int[] cleaned) throws Exception {
+        File[] files = record.listFiles(file -> file.isFile()
+                && !file.getName().equals(PENDING_FILE));
+        if (files == null || files.length == 0) throw new IOException("Lokalni zapis je prazen");
+        Arrays.sort(files, (left, right) -> Integer.compare(order(left), order(right)));
         Uri root = DocumentsContract.buildDocumentUriUsingTree(
                 tree, DocumentsContract.getTreeDocumentId(tree));
         boolean direct = context.getSharedPreferences("screenme", 0)
@@ -356,39 +379,42 @@ final class Storage {
                 .getBoolean("turbo", false);
         if (turbo) remoteTextIfMissing(context, destination,
                 "TURBO_PROTOCOL.md", protocol());
-        Uri project = dir(context, destination, record.getParentFile().getName());
-        Uri target = dir(context, project, record.getName());
-        File[] files = record.listFiles(file -> file.isFile()
-                && !file.getName().equals(PENDING_FILE));
-        if (files == null || files.length == 0) throw new IOException("Lokalni zapis je prazen");
-        Arrays.sort(files, (left, right) -> Integer.compare(order(left), order(right)));
-        for (int index = 0; index < files.length; index++) {
-            updateFileProgress(context, files[index], index + 1, files.length);
-            copy(context, target, files[index]);
-        }
-        if (turbo) {
-            File meta = new File(record, "metadata.json");
-            String title = RecordItem.json(meta, "title", "Brez naslova");
-            String profile = RecordItem.json(meta, "profile", record.getParentFile().getName());
-            String status = "{\n  \"protocolVersion\": 1,\n  \"state\": \"NEW\",\n"
-                    + "  \"recordId\": \"" + esc(record.getParentFile().getName() + "/"
-                    + record.getName()) + "\",\n  \"project\": \"" + esc(profile)
-                    + "\",\n  \"title\": \"" + esc(title) + "\",\n  \"createdAt\": \""
-                    + new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT)
-                    .format(new Date()) + "\"\n}\n";
-            remoteTextIfMissing(context, target, "turbo-status.json", status);
+        RemoteDirectory project = remoteDirectory(context, destination,
+                record.getParentFile().getName());
+        RemoteDirectory target = null;
+        try {
+            target = remoteDirectory(context, project.uri, record.getName());
+            for (int index = 0; index < files.length; index++) {
+                updateFileProgress(context, files[index], index + 1, files.length);
+                copy(context, target.uri, files[index]);
+            }
+            if (turbo) {
+                File meta = new File(record, "metadata.json");
+                String title = RecordItem.json(meta, "title", "Brez naslova");
+                String profile = RecordItem.json(meta, "profile", record.getParentFile().getName());
+                String status = "{\n  \"protocolVersion\": 1,\n  \"state\": \"NEW\",\n"
+                        + "  \"recordId\": \"" + esc(record.getParentFile().getName() + "/"
+                        + record.getName()) + "\",\n  \"project\": \"" + esc(profile)
+                        + "\",\n  \"title\": \"" + esc(title) + "\",\n  \"createdAt\": \""
+                        + new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT)
+                        .format(new Date()) + "\"\n}\n";
+                remoteTextIfMissing(context, target.uri, "turbo-status.json", status);
+            }
+        } catch (Exception error) {
+            cleaned[0] += cleanupCreatedDirectories(context, project, target);
+            throw error;
         }
     }
 
     private static void syncRecordWithRetries(Context context, Uri tree, File record,
-                                              StopCheck stopCheck) throws Exception {
+                                              StopCheck stopCheck, int[] cleaned) throws Exception {
         Exception lastError = null;
         for (int attempt = 1; attempt <= 4; attempt++) {
             if (stopCheck != null && stopCheck.stopped()) {
                 throw new IOException("Pošiljanje je bilo začasno prekinjeno");
             }
             try {
-                syncRecord(context, tree, record);
+                syncRecord(context, tree, record, cleaned);
                 return;
             } catch (Exception error) {
                 lastError = error;
@@ -509,6 +535,11 @@ final class Storage {
     }
 
     private static Uri dir(Context context, Uri parent, String name) throws Exception {
+        return remoteDirectory(context, parent, name).uri;
+    }
+
+    private static RemoteDirectory remoteDirectory(Context context, Uri parent, String name)
+            throws Exception {
         try (android.database.Cursor cursor = context.getContentResolver().query(
                 DocumentsContract.buildChildDocumentsUriUsingTree(parent,
                         DocumentsContract.getDocumentId(parent)),
@@ -518,14 +549,38 @@ final class Storage {
             while (cursor != null && cursor.moveToNext()) {
                 if (name.equals(cursor.getString(1))
                         && DocumentsContract.Document.MIME_TYPE_DIR.equals(cursor.getString(2))) {
-                    return DocumentsContract.buildDocumentUriUsingTree(parent, cursor.getString(0));
+                    return new RemoteDirectory(DocumentsContract.buildDocumentUriUsingTree(
+                            parent, cursor.getString(0)), false);
                 }
             }
         }
         Uri created = DocumentsContract.createDocument(context.getContentResolver(), parent,
                 DocumentsContract.Document.MIME_TYPE_DIR, name);
         if (created == null) throw new IOException("Mape »" + name + "« ni mogoče ustvariti");
-        return created;
+        return new RemoteDirectory(created, true);
+    }
+
+    private static int cleanupCreatedDirectories(Context context, RemoteDirectory project,
+                                                 RemoteDirectory target) {
+        int removed = 0;
+        boolean targetRemoved = target == null;
+        if (target != null && target.created) {
+            try {
+                targetRemoved = DocumentsContract.deleteDocument(
+                        context.getContentResolver(), target.uri);
+                if (targetRemoved) removed++;
+            } catch (Exception ignored) {
+                targetRemoved = false;
+            }
+        }
+        if (project.created && targetRemoved && (target == null || target.created)) {
+            try {
+                if (DocumentsContract.deleteDocument(context.getContentResolver(), project.uri)) {
+                    removed++;
+                }
+            } catch (Exception ignored) {}
+        }
+        return removed;
     }
 
     private static void copy(Context context, Uri parent, File file) throws Exception {

@@ -1,5 +1,11 @@
 # Dnevnik sprememb
 
+## 0.4.8 — 2026-09-07
+
+- ScreenMe samodejno odstrani nove prazne Drive mape, ki bi jih za sabo pustil neuspel prenos.
+- Čiščenje je omejeno izključno na mape, ki jih je ScreenMe ustvaril v trenutnem poskusu; obstoječe projektne mape in zapisi niso nikoli kandidati za brisanje.
+- Okno prenosa pokaže čas zadnjega preverjanja in število odstranjenih map po neuspelem prenosu.
+
 ## 0.4.7 — 2026-09-07
 
 - Prenosi so preverjeni in povezani z mapo `Moj disk / ScreenMe / ScreenMe` v pravem Google računu.

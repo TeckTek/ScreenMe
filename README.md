@@ -1,4 +1,4 @@
-# ScreenMe 0.4.7
+# ScreenMe 0.4.8
 
 ScreenMe je profesionalno Android orodje za hitro beleženje napak med testiranjem aplikacij. Posnetek zaslona, vizualne oznake in strukturirana opomba ostanejo združeni v enem zapisu.
 
@@ -25,6 +25,7 @@ ScreenMe je profesionalno Android orodje za hitro beleženje napak med testiranj
 - neposredna nastavitev oblačne mape iz okna pošiljanja in opozorilo pred prvim lokalnim zajemom brez sinhronizacije;
 - preverjanje internetne povezave ter jasna pomoč, kadar je Google Drive arhiviran ali še ni odprt;
 - ročni gumb za osvežitev nadzornega okna in celotnega glavnega zaslona;
+- samodejno varno čiščenje novih praznih Drive map, ki bi ostale po neuspelem prenosu;
 - Turbo mode za skupno Drive delovno vrsto med testerjem in Codexom;
 - slovenski govor-v-besedilo za hitro narekovanje opisa napake;
 - nastavljiva velikost in barva plavajočega gumba;
