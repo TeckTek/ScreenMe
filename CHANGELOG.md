@@ -1,5 +1,14 @@
 # Dnevnik sprememb
 
+## 0.4.5 — 2026-09-07
+
+- Ob prvem začetku zajema ScreenMe ponudi vklop samodejnega prepoznavanja odprte aplikacije.
+- Če je funkcija vklopljena, vendar manjka Androidovo dovoljenje, ScreenMe ponudi neposreden prehod v nastavitev Dostop do uporabe.
+- Ko je samodejno zaznavanje pripravljeno, se projekt izbere ali ustvari po odprti aplikaciji brez vprašanja za ime projekta.
+- Ročni način ostaja na voljo in si ScreenMe izbrano odločitev zapomni.
+- Če oblačna mapa manjka, jo ScreenMe ponudi ob začetku zajema; uporabnik lahko nadaljuje tudi samo lokalno.
+- V oknu pošiljanja je dodan neposreden gumb za nastavitev ali spremembo oblačne mape, po izbiri pa se v pošiljanje uvrstijo tudi obstoječi lokalni zapisi.
+
 ## 0.4.4 — 2026-09-07
 
 - Klik na kartico sinhronizacije odpre živo nadzorno okno s številom končanih in čakajočih zapisov, trenutno mapo, datoteko ter napako.

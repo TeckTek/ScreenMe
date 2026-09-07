@@ -14,7 +14,7 @@ import android.widget.TextView;
 final class SyncQueueDialog {
     private SyncQueueDialog() {}
 
-    static void show(Activity activity, Runnable onChanged) {
+    static void show(Activity activity, Runnable onChanged, Runnable onChooseFolder) {
         Storage.refreshStatus(activity);
         LinearLayout panel = new LinearLayout(activity);
         panel.setOrientation(LinearLayout.VERTICAL);
@@ -37,6 +37,9 @@ final class SyncQueueDialog {
         TextView error = Ui.text(activity, "", 13, Ui.RED);
         panel.addView(error);
         Ui.margin(error, 0, 8, 0, 0);
+        TextView chooseFolder = Ui.button(activity, "NASTAVI OBLAČNO MAPO", false);
+        panel.addView(chooseFolder);
+        Ui.margin(chooseFolder, 0, 8, 0, 0);
 
         TextView historyLabel = Ui.label(activity, "ZGODOVINA POSLANIH");
         panel.addView(historyLabel);
@@ -110,6 +113,7 @@ final class SyncQueueDialog {
             String mode = SyncScheduler.state(activity);
             String problem = prefs.getString(Storage.PREF_ERROR, "");
             boolean folder = !prefs.getString("syncTree", "").isEmpty();
+            chooseFolder.setText(folder ? "SPREMENI OBLAČNO MAPO" : "NASTAVI OBLAČNO MAPO");
             if (!folder) {
                 state.setText("Oblačna mapa ni nastavljena");
                 state.setTextColor(Ui.AMBER);
@@ -189,6 +193,10 @@ final class SyncQueueDialog {
             Storage.clearHistory(activity);
             Ui.toast(activity, "Zgodovina poslanih je počiščena");
             updateNow.run();
+        });
+        chooseFolder.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (onChooseFolder != null) onChooseFolder.run();
         });
 
         dialog.setOnShowListener(v -> updater[0].run());

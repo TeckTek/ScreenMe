@@ -117,7 +117,12 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         security.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_SECURITY_SETTINGS)));
         detection.addView(security);
         Ui.margin(security, 0, 12, 0, 0);
-        autoProject.setOnCheckedChangeListener((button, on) -> updateUsageStatus());
+        autoProject.setOnCheckedChangeListener((button, on) -> {
+            getSharedPreferences("screenme", 0).edit()
+                    .putBoolean("autoProject", on)
+                    .putBoolean("autoProjectConfigured", true).apply();
+            updateUsageStatus();
+        });
         updateUsageStatus();
         root.addView(detection);
         Ui.margin(detection, 0, 8, 0, 18);
@@ -375,13 +380,14 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
                 singleAction == null ? 0 : singleAction.getSelectedItemPosition(),
                 doubleAction == null ? 1 : doubleAction.getSelectedItemPosition(),
                 longAction == null ? 2 : longAction.getSelectedItemPosition());
-        getSharedPreferences("screenme", 0).edit()
+        android.content.SharedPreferences.Editor settings = getSharedPreferences("screenme", 0).edit()
                 .putInt("bubbleSize", sizes[size.getSelectedItemPosition()])
                 .putInt("bubbleColor", color.getSelectedItemPosition())
                 .putBoolean("turbo", turbo != null && turbo.isChecked())
                 .putBoolean("autoProject", autoProject != null && autoProject.isChecked())
-                .putString("updateUrl", update.getText().toString().trim())
-                .apply();
+                .putString("updateUrl", update.getText().toString().trim());
+        if (toast) settings.putBoolean("autoProjectConfigured", true);
+        settings.apply();
         if (toast) Ui.toast(this, "Nastavitve so shranjene");
     }
 
