@@ -1,5 +1,11 @@
 # Dnevnik sprememb
 
+## 0.4.6 — 2026-09-07
+
+- Pred izbiro oblačne mape ScreenMe preveri internetno povezavo in ob manjkajoči povezavi ponudi neposreden prehod v omrežne nastavitve.
+- Če je Google Drive arhiviran oziroma onemogočen do prve uporabe, ScreenMe pojasni težavo in ponudi njegovo odprtje.
+- Po vrnitvi iz omrežnih nastavitev ali Driva se izbirnik oblačne mape samodejno nadaljuje, ko so pogoji izpolnjeni.
+
 ## 0.4.5 — 2026-09-07
 
 - Ob prvem začetku zajema ScreenMe ponudi vklop samodejnega prepoznavanja odprte aplikacije.
