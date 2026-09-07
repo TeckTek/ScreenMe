@@ -1,5 +1,12 @@
 # Dnevnik sprememb
 
+## 0.4.4 — 2026-09-07
+
+- Klik na kartico sinhronizacije odpre živo nadzorno okno s številom končanih in čakajočih zapisov, trenutno mapo, datoteko ter napako.
+- Dodani so ukazi Pavza, Zaženi, Zaženi znova, Ustavi, Osveži okno in Izbriši čakalno vrsto.
+- Dodana je zgodovina uspešno poslanih zapisov ter ukaz Počisti vse poslane; lokalne in Drive datoteke pri tem ostanejo varne.
+- Glavni zaslon ima novo tipko Osveži, ki ponovno prebere vse projekte, zapise in stanje pošiljanja.
+
 ## 0.4.3 — 2026-09-07
 
 - Drive zapisovanje uporablja način, ki ga Googlov Androidov ponudnik dokumentov zanesljivo podpira, z varnimi nadomestnimi načini za druge ponudnike.

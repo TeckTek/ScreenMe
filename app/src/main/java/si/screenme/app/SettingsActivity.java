@@ -142,6 +142,7 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         Ui.margin(choose, 0, 14, 0, 0);
         TextView retry = Ui.button(this, "POŠLJI LOKALNE ZAPISE ZNOVA", false);
         retry.setOnClickListener(v -> {
+            SyncScheduler.resume(this);
             int queued = Storage.queueAllRecords(this);
             syncStatus.setText(syncText());
             Ui.toast(this, queued == 0 ? "Ni novih lokalnih zapisov za pošiljanje"
@@ -154,7 +155,8 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         clear.setOnClickListener(v -> {
             getSharedPreferences("screenme", 0).edit()
                     .remove("syncTree").remove("syncDirect")
-                    .remove(Storage.PREF_ERROR).remove(Storage.PREF_PENDING).apply();
+                    .remove(Storage.PREF_ERROR).remove(Storage.PREF_PENDING)
+                    .remove(SyncScheduler.PREF_STATE).apply();
             SyncScheduler.cancel(this);
             syncStatus.setText(syncText());
         });
@@ -309,8 +311,13 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
             return on ? "⚠  Turbo čaka na mapo ScreenMe Turbo."
                     : "Oblačna mapa še ni izbrana. Uporabi Google Drive, Dropbox ali drugo mapo ponudnika dokumentov.";
         }
-        String error = prefs.getString(Storage.PREF_ERROR, "");
+        String mode = SyncScheduler.state(this);
         int pending = prefs.getInt(Storage.PREF_PENDING, 0);
+        if (SyncScheduler.PAUSED.equals(mode)) return "Ⅱ  Pošiljanje je na pavzi · čaka "
+                + pending + " zapisov.";
+        if (SyncScheduler.STOPPED.equals(mode)) return "■  Pošiljanje je ustavljeno · čaka "
+                + pending + " zapisov.";
+        String error = prefs.getString(Storage.PREF_ERROR, "");
         if (!error.isEmpty()) return "⚠  Drive ni sprejel datotek: " + error
                 + (pending > 0 ? " · čaka " + pending + " zapisov." : ".");
         if (pending > 0) return "↻  V Drive se pošilja " + pending
@@ -351,6 +358,7 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
                         .putString("syncTree", u.toString())
                         .putBoolean("syncDirect", true)
                         .remove(Storage.PREF_ERROR).apply();
+                SyncScheduler.resume(this);
                 int queued = Storage.queueAllRecords(this);
                 syncStatus.setText(syncText());
                 Ui.toast(this, queued == 0 ? "Sinhronizacijska mapa je nastavljena"

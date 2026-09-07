@@ -25,6 +25,15 @@ final class Storage {
     static final String PREF_PENDING = "syncPendingCount";
     static final String PREF_ERROR = "syncLastError";
     static final String PREF_SUCCESS = "syncLastSuccess";
+    static final String PREF_BATCH_TOTAL = "syncBatchTotal";
+    static final String PREF_BATCH_DONE = "syncBatchDone";
+    static final String PREF_CURRENT = "syncCurrentRecord";
+    static final String PREF_FILE_INDEX = "syncCurrentFileIndex";
+    static final String PREF_FILE_TOTAL = "syncCurrentFileTotal";
+    static final String PREF_CURRENT_FILE = "syncCurrentFile";
+    static final String PREF_FILE_BYTES = "syncCurrentFileBytes";
+    static final String PREF_FILE_SIZE = "syncCurrentFileSize";
+    static final String PREF_HISTORY = "syncHistory";
     static final String ACTION_SYNC_STATUS = "si.screenme.app.SYNC_STATUS";
     private static final String PENDING_FILE = ".sync-pending";
     private static final Object SYNC_LOCK = new Object();
@@ -73,8 +82,17 @@ final class Storage {
     static void sync(Context context, File record) {
         SharedPreferences prefs = context.getSharedPreferences("screenme", 0);
         if (prefs.getString("syncTree", "").isEmpty()) return;
+        int before = countPending(context);
+        boolean alreadyPending = new File(record, PENDING_FILE).isFile();
         markPending(record);
-        updatePendingCount(context);
+        int pending = countPending(context);
+        SharedPreferences.Editor edit = prefs.edit().putInt(PREF_PENDING, pending);
+        if (!alreadyPending) {
+            if (before == 0) edit.putInt(PREF_BATCH_TOTAL, 1).putInt(PREF_BATCH_DONE, 0);
+            else edit.putInt(PREF_BATCH_TOTAL, Math.max(prefs.getInt(PREF_BATCH_TOTAL, 0),
+                    prefs.getInt(PREF_BATCH_DONE, 0) + pending));
+        }
+        edit.apply();
         SyncScheduler.scheduleNow(context);
     }
 
@@ -95,8 +113,15 @@ final class Storage {
                 }
             }
         }
-        updatePendingCount(context);
         int pending = countPending(context);
+        context.getSharedPreferences("screenme", 0).edit()
+                .putInt(PREF_PENDING, pending)
+                .putInt(PREF_BATCH_TOTAL, pending)
+                .putInt(PREF_BATCH_DONE, 0)
+                .remove(PREF_CURRENT).remove(PREF_CURRENT_FILE)
+                .putInt(PREF_FILE_INDEX, 0).putInt(PREF_FILE_TOTAL, 0)
+                .putLong(PREF_FILE_BYTES, 0).putLong(PREF_FILE_SIZE, 0)
+                .remove(PREF_ERROR).apply();
         if (pending > 0) SyncScheduler.scheduleNow(context);
         return pending;
     }
@@ -115,17 +140,41 @@ final class Storage {
             String raw = prefs.getString("syncTree", "");
             if (raw.isEmpty()) return result;
             ArrayList<File> pending = pendingRecords(context);
+            if (pending.size() > prefs.getInt(PREF_BATCH_TOTAL, 0)) {
+                prefs.edit().putInt(PREF_BATCH_TOTAL, pending.size())
+                        .putInt(PREF_BATCH_DONE, 0).apply();
+            }
             String lastError = "";
             for (File record : pending) {
-                if (stopCheck != null && stopCheck.stopped()) break;
+                if ((stopCheck != null && stopCheck.stopped())
+                        || !SyncScheduler.isRunning(context)) break;
+                prefs.edit().putString(PREF_CURRENT, record.getParentFile().getName()
+                        + " / " + record.getName()).putInt(PREF_FILE_INDEX, 0)
+                        .putInt(PREF_FILE_TOTAL, 0).putLong(PREF_FILE_BYTES, 0)
+                        .putLong(PREF_FILE_SIZE, 0).remove(PREF_CURRENT_FILE).apply();
+                broadcastStatus(context);
                 try {
                     syncRecordWithRetries(context, Uri.parse(raw), record, stopCheck);
+                    if ((stopCheck != null && stopCheck.stopped())
+                            || !SyncScheduler.isRunning(context)) break;
                     File marker = new File(record, PENDING_FILE);
                     if (marker.exists() && !marker.delete()) {
                         throw new IOException("Končanega prenosa ni mogoče označiti");
                     }
                     result.succeeded++;
+                    addHistory(context, record);
+                    int done = prefs.getInt(PREF_BATCH_DONE, 0) + 1;
+                    prefs.edit().putInt(PREF_BATCH_DONE, done)
+                            .putInt(PREF_PENDING, countPending(context))
+                            .remove(PREF_CURRENT).remove(PREF_CURRENT_FILE)
+                            .putInt(PREF_FILE_INDEX, 0).putInt(PREF_FILE_TOTAL, 0)
+                            .putLong(PREF_FILE_BYTES, 0).putLong(PREF_FILE_SIZE, 0)
+                            .remove(PREF_ERROR).putLong(PREF_SUCCESS, System.currentTimeMillis())
+                            .apply();
+                    broadcastStatus(context);
                 } catch (Exception error) {
+                    if ((stopCheck != null && stopCheck.stopped())
+                            || !SyncScheduler.isRunning(context)) break;
                     result.failed++;
                     lastError = readable(error);
                 }
@@ -136,13 +185,75 @@ final class Storage {
             if (result.failed > 0) edit.putString(PREF_ERROR, lastError);
             else edit.remove(PREF_ERROR);
             edit.apply();
-            context.sendBroadcast(new Intent(ACTION_SYNC_STATUS).setPackage(context.getPackageName()));
+            broadcastStatus(context);
             return result;
         }
     }
 
     static int countPending(Context context) {
         return pendingRecords(context).size();
+    }
+
+    static int refreshStatus(Context context) {
+        int pending = countPending(context);
+        SharedPreferences prefs = context.getSharedPreferences("screenme", 0);
+        SharedPreferences.Editor edit = prefs.edit().putInt(PREF_PENDING, pending);
+        if (pending == 0) {
+            edit.remove(PREF_CURRENT).remove(PREF_CURRENT_FILE)
+                    .putInt(PREF_FILE_INDEX, 0).putInt(PREF_FILE_TOTAL, 0)
+                    .putLong(PREF_FILE_BYTES, 0).putLong(PREF_FILE_SIZE, 0);
+        } else {
+            edit.putInt(PREF_BATCH_TOTAL, Math.max(prefs.getInt(PREF_BATCH_TOTAL, 0),
+                    prefs.getInt(PREF_BATCH_DONE, 0) + pending));
+        }
+        edit.apply();
+        broadcastStatus(context);
+        return pending;
+    }
+
+    static int clearPendingQueue(Context context) {
+        int removed = 0;
+        for (File record : pendingRecords(context)) {
+            File marker = new File(record, PENDING_FILE);
+            if (marker.isFile() && marker.delete()) removed++;
+        }
+        context.getSharedPreferences("screenme", 0).edit()
+                .putInt(PREF_PENDING, countPending(context))
+                .putInt(PREF_BATCH_TOTAL, 0).putInt(PREF_BATCH_DONE, 0)
+                .putInt(PREF_FILE_INDEX, 0).putInt(PREF_FILE_TOTAL, 0)
+                .putLong(PREF_FILE_BYTES, 0).putLong(PREF_FILE_SIZE, 0)
+                .remove(PREF_CURRENT).remove(PREF_CURRENT_FILE).remove(PREF_ERROR).apply();
+        SyncScheduler.cancel(context);
+        broadcastStatus(context);
+        return removed;
+    }
+
+    static String historyText(Context context) {
+        String raw = context.getSharedPreferences("screenme", 0)
+                .getString(PREF_HISTORY, "");
+        if (raw.trim().isEmpty()) return "Še ni uspešno poslanih zapisov.";
+        StringBuilder result = new StringBuilder();
+        String[] rows = raw.split("\\n");
+        SimpleDateFormat format = new SimpleDateFormat("dd. MM. yyyy  HH:mm", Locale.ROOT);
+        for (int index = 0; index < rows.length && index < 12; index++) {
+            int separator = rows[index].indexOf('\t');
+            if (separator < 1) continue;
+            try {
+                long time = Long.parseLong(rows[index].substring(0, separator));
+                if (result.length() > 0) result.append('\n');
+                result.append("• ").append(format.format(new Date(time))).append("  ·  ")
+                        .append(rows[index].substring(separator + 1));
+            } catch (Exception ignored) {}
+        }
+        return result.length() == 0 ? "Še ni uspešno poslanih zapisov." : result.toString();
+    }
+
+    static void clearHistory(Context context) {
+        int pending = countPending(context);
+        context.getSharedPreferences("screenme", 0).edit()
+                .remove(PREF_HISTORY).putInt(PREF_BATCH_DONE, 0)
+                .putInt(PREF_BATCH_TOTAL, pending).apply();
+        broadcastStatus(context);
     }
 
     private static ArrayList<File> pendingRecords(Context context) {
@@ -191,7 +302,10 @@ final class Storage {
                 && !file.getName().equals(PENDING_FILE));
         if (files == null || files.length == 0) throw new IOException("Lokalni zapis je prazen");
         Arrays.sort(files, (left, right) -> Integer.compare(order(left), order(right)));
-        for (File file : files) copy(context, target, file);
+        for (int index = 0; index < files.length; index++) {
+            updateFileProgress(context, files[index], index + 1, files.length);
+            copy(context, target, files[index]);
+        }
         if (turbo) {
             File meta = new File(record, "metadata.json");
             String title = RecordItem.json(meta, "title", "Brez naslova");
@@ -234,6 +348,38 @@ final class Storage {
         return 4;
     }
 
+    private static void updateFileProgress(Context context, File file, int index, int total) {
+        context.getSharedPreferences("screenme", 0).edit()
+                .putString(PREF_CURRENT_FILE, file.getName())
+                .putInt(PREF_FILE_INDEX, index).putInt(PREF_FILE_TOTAL, total)
+                .putLong(PREF_FILE_BYTES, 0).putLong(PREF_FILE_SIZE, file.length()).apply();
+        broadcastStatus(context);
+    }
+
+    private static void updateByteProgress(Context context, long copied, long size) {
+        context.getSharedPreferences("screenme", 0).edit()
+                .putLong(PREF_FILE_BYTES, copied).putLong(PREF_FILE_SIZE, size).apply();
+        broadcastStatus(context);
+    }
+
+    private static void addHistory(Context context, File record) {
+        SharedPreferences prefs = context.getSharedPreferences("screenme", 0);
+        String key = record.getParentFile().getName() + " / " + record.getName();
+        StringBuilder history = new StringBuilder(System.currentTimeMillis()
+                + "\t" + key);
+        int kept = 1;
+        for (String row : prefs.getString(PREF_HISTORY, "").split("\\n")) {
+            if (row.trim().isEmpty() || row.endsWith("\t" + key)) continue;
+            if (kept++ >= 50) break;
+            history.append('\n').append(row);
+        }
+        prefs.edit().putString(PREF_HISTORY, history.toString()).apply();
+    }
+
+    private static void broadcastStatus(Context context) {
+        context.sendBroadcast(new Intent(ACTION_SYNC_STATUS).setPackage(context.getPackageName()));
+    }
+
     private static Uri dir(Context context, Uri parent, String name) throws Exception {
         try (android.database.Cursor cursor = context.getContentResolver().query(
                 DocumentsContract.buildChildDocumentsUriUsingTree(parent,
@@ -270,7 +416,15 @@ final class Storage {
                     + "« ni mogoče odpreti za pisanje");
             byte[] buffer = new byte[64 * 1024];
             int count;
-            while ((count = input.read(buffer)) > 0) output.write(buffer, 0, count);
+            long copied = 0, reported = 0, size = file.length();
+            while ((count = input.read(buffer)) > 0) {
+                output.write(buffer, 0, count);
+                copied += count;
+                if (copied - reported >= 256 * 1024 || copied == size) {
+                    reported = copied;
+                    updateByteProgress(context, copied, size);
+                }
+            }
             output.flush();
         }
     }

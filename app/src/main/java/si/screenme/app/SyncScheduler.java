@@ -6,14 +6,28 @@ import android.content.ComponentName;
 import android.content.Context;
 
 final class SyncScheduler {
+    static final String PREF_STATE = "syncRunState";
+    static final String RUNNING = "running";
+    static final String PAUSED = "paused";
+    static final String STOPPED = "stopped";
     private static final int NOW = 9201;
     private static final int PERIODIC = 9202;
     private static final long INTERVAL = 6L * 60L * 60L * 1000L;
 
     private SyncScheduler() {}
 
+    static String state(Context context) {
+        return context.getSharedPreferences("screenme", 0)
+                .getString(PREF_STATE, RUNNING);
+    }
+
+    static boolean isRunning(Context context) {
+        return RUNNING.equals(state(context));
+    }
+
     static void scheduleNow(Context context) {
-        if (context.getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty()) return;
+        if (!isRunning(context) || context.getSharedPreferences("screenme", 0)
+                .getString("syncTree", "").isEmpty()) return;
         schedulePeriodic(context);
         JobScheduler scheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         scheduler.schedule(new JobInfo.Builder(NOW, new ComponentName(context, SyncJobService.class))
@@ -26,7 +40,8 @@ final class SyncScheduler {
     }
 
     static void schedulePeriodic(Context context) {
-        if (context.getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty()) return;
+        if (!isRunning(context) || context.getSharedPreferences("screenme", 0)
+                .getString("syncTree", "").isEmpty()) return;
         JobScheduler scheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if (scheduler.getPendingJob(PERIODIC) != null) return;
         scheduler.schedule(new JobInfo.Builder(PERIODIC, new ComponentName(context, SyncJobService.class))
@@ -40,5 +55,24 @@ final class SyncScheduler {
         JobScheduler scheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         scheduler.cancel(NOW);
         scheduler.cancel(PERIODIC);
+    }
+
+    static void pause(Context context) {
+        context.getSharedPreferences("screenme", 0).edit()
+                .putString(PREF_STATE, PAUSED).apply();
+        cancel(context);
+    }
+
+    static void stop(Context context) {
+        context.getSharedPreferences("screenme", 0).edit()
+                .putString(PREF_STATE, STOPPED).apply();
+        cancel(context);
+    }
+
+    static void resume(Context context) {
+        context.getSharedPreferences("screenme", 0).edit()
+                .putString(PREF_STATE, RUNNING).remove(Storage.PREF_ERROR).apply();
+        schedulePeriodic(context);
+        if (Storage.countPending(context) > 0) scheduleNow(context);
     }
 }
