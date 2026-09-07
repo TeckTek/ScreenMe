@@ -7,6 +7,9 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -43,6 +46,16 @@ final class Storage {
     static final class SyncResult {
         int succeeded;
         int failed;
+    }
+
+    static final class HistoryEntry {
+        long time;
+        String project = "";
+        String record = "";
+        String title = "";
+        String destination = "";
+        long bytes;
+        final ArrayList<String> files = new ArrayList<>();
     }
 
     private Storage() {}
@@ -228,24 +241,71 @@ final class Storage {
         return removed;
     }
 
-    static String historyText(Context context) {
+    static ArrayList<HistoryEntry> history(Context context) {
         String raw = context.getSharedPreferences("screenme", 0)
-                .getString(PREF_HISTORY, "");
-        if (raw.trim().isEmpty()) return "Še ni uspešno poslanih zapisov.";
-        StringBuilder result = new StringBuilder();
-        String[] rows = raw.split("\\n");
-        SimpleDateFormat format = new SimpleDateFormat("dd. MM. yyyy  HH:mm", Locale.ROOT);
-        for (int index = 0; index < rows.length && index < 12; index++) {
-            int separator = rows[index].indexOf('\t');
-            if (separator < 1) continue;
+                .getString(PREF_HISTORY, "").trim();
+        ArrayList<HistoryEntry> result = new ArrayList<>();
+        if (raw.isEmpty()) return result;
+        if (raw.startsWith("[")) {
             try {
-                long time = Long.parseLong(rows[index].substring(0, separator));
-                if (result.length() > 0) result.append('\n');
-                result.append("• ").append(format.format(new Date(time))).append("  ·  ")
-                        .append(rows[index].substring(separator + 1));
+                JSONArray items = new JSONArray(raw);
+                for (int index = 0; index < items.length() && result.size() < 50; index++) {
+                    JSONObject item = items.optJSONObject(index);
+                    if (item == null) continue;
+                    HistoryEntry entry = new HistoryEntry();
+                    entry.time = item.optLong("time", 0);
+                    entry.project = item.optString("project", "");
+                    entry.record = item.optString("record", "");
+                    entry.title = item.optString("title", "");
+                    entry.destination = item.optString("destination", "");
+                    entry.bytes = item.optLong("bytes", 0);
+                    JSONArray files = item.optJSONArray("files");
+                    if (files != null) for (int file = 0; file < files.length(); file++) {
+                        String name = files.optString(file, "");
+                        if (!name.isEmpty()) entry.files.add(name);
+                    }
+                    if (entry.time > 0) result.add(entry);
+                }
+                return result;
+            } catch (Exception ignored) {
+                result.clear();
+            }
+        }
+
+        // Read the compact history format used by ScreenMe 0.4.4–0.4.6.
+        for (String row : raw.split("\\n")) {
+            int separator = row.indexOf('\t');
+            if (separator < 1 || result.size() >= 50) continue;
+            try {
+                HistoryEntry entry = new HistoryEntry();
+                entry.time = Long.parseLong(row.substring(0, separator));
+                String key = row.substring(separator + 1);
+                int slash = key.indexOf(" / ");
+                entry.project = slash < 0 ? key : key.substring(0, slash);
+                entry.record = slash < 0 ? "" : key.substring(slash + 3);
+                File local = entry.record.isEmpty() ? null
+                        : new File(ProjectStore.folder(context, entry.project), entry.record);
+                if (local != null && local.isDirectory()) fillHistoryFiles(context, entry, local);
+                result.add(entry);
             } catch (Exception ignored) {}
         }
-        return result.length() == 0 ? "Še ni uspešno poslanih zapisov." : result.toString();
+        return result;
+    }
+
+    static String historyText(Context context) {
+        ArrayList<HistoryEntry> entries = history(context);
+        if (entries.isEmpty()) return "Še ni uspešno prenesenih zapisov.";
+        SimpleDateFormat format = new SimpleDateFormat("dd. MM. yyyy  HH:mm:ss", Locale.ROOT);
+        StringBuilder result = new StringBuilder();
+        for (int index = 0; index < entries.size() && index < 12; index++) {
+            HistoryEntry entry = entries.get(index);
+            if (result.length() > 0) result.append('\n');
+            result.append("✓ ").append(format.format(new Date(entry.time))).append("  ·  ")
+                    .append(entry.project).append(" / ").append(entry.record);
+            if (!entry.files.isEmpty()) result.append("  ·  ").append(entry.files.size())
+                    .append(" datotek");
+        }
+        return result.toString();
     }
 
     static void clearHistory(Context context) {
@@ -364,16 +424,84 @@ final class Storage {
 
     private static void addHistory(Context context, File record) {
         SharedPreferences prefs = context.getSharedPreferences("screenme", 0);
-        String key = record.getParentFile().getName() + " / " + record.getName();
-        StringBuilder history = new StringBuilder(System.currentTimeMillis()
-                + "\t" + key);
+        HistoryEntry newest = new HistoryEntry();
+        newest.time = System.currentTimeMillis();
+        newest.project = record.getParentFile().getName();
+        newest.record = record.getName();
+        fillHistoryFiles(context, newest, record);
+
+        ArrayList<HistoryEntry> entries = history(context);
+        JSONArray stored = new JSONArray();
+        stored.put(historyJson(newest));
         int kept = 1;
-        for (String row : prefs.getString(PREF_HISTORY, "").split("\\n")) {
-            if (row.trim().isEmpty() || row.endsWith("\t" + key)) continue;
+        for (HistoryEntry entry : entries) {
+            if (entry.project.equals(newest.project) && entry.record.equals(newest.record)) continue;
             if (kept++ >= 50) break;
-            history.append('\n').append(row);
+            stored.put(historyJson(entry));
         }
-        prefs.edit().putString(PREF_HISTORY, history.toString()).apply();
+        prefs.edit().putString(PREF_HISTORY, stored.toString()).apply();
+    }
+
+    private static void fillHistoryFiles(Context context, HistoryEntry entry, File record) {
+        File[] copied = record.listFiles(file -> file.isFile()
+                && !file.getName().equals(PENDING_FILE));
+        if (copied != null) {
+            Arrays.sort(copied, (left, right) -> Integer.compare(order(left), order(right)));
+            for (File file : copied) {
+                entry.files.add(file.getName());
+                entry.bytes += Math.max(0, file.length());
+            }
+        }
+        if (context.getSharedPreferences("screenme", 0).getBoolean("turbo", false)
+                && !entry.files.contains("turbo-status.json")) {
+            entry.files.add("turbo-status.json");
+        }
+        File metadata = new File(record, "metadata.json");
+        entry.title = RecordItem.json(metadata, "title", "");
+        entry.destination = syncDestinationName(context);
+    }
+
+    private static JSONObject historyJson(HistoryEntry entry) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("time", entry.time);
+            item.put("project", entry.project);
+            item.put("record", entry.record);
+            item.put("title", entry.title);
+            item.put("destination", entry.destination);
+            item.put("bytes", entry.bytes);
+            JSONArray files = new JSONArray();
+            for (String file : entry.files) files.put(file);
+            item.put("files", files);
+        } catch (Exception ignored) {}
+        return item;
+    }
+
+    static void rememberSyncDestination(Context context, Uri tree) {
+        String provider = tree.getAuthority() != null
+                && tree.getAuthority().contains("google") ? "Google Drive" : "Oblačna mapa";
+        String name = "";
+        try {
+            Uri root = DocumentsContract.buildDocumentUriUsingTree(
+                    tree, DocumentsContract.getTreeDocumentId(tree));
+            try (android.database.Cursor cursor = context.getContentResolver().query(root,
+                    new String[]{DocumentsContract.Document.COLUMN_DISPLAY_NAME},
+                    null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) name = cursor.getString(0);
+            }
+        } catch (Exception ignored) {}
+        String label = name == null || name.trim().isEmpty() ? provider : provider + " / " + name;
+        context.getSharedPreferences("screenme", 0).edit()
+                .putString("syncFolderName", label).apply();
+    }
+
+    static String syncDestinationName(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences("screenme", 0);
+        String name = prefs.getString("syncFolderName", "");
+        if (!name.isEmpty()) return name;
+        String raw = prefs.getString("syncTree", "");
+        if (!raw.isEmpty()) rememberSyncDestination(context, Uri.parse(raw));
+        return prefs.getString("syncFolderName", "Google Drive");
     }
 
     private static void broadcastStatus(Context context) {

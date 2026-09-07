@@ -160,6 +160,7 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         clear.setOnClickListener(v -> {
             getSharedPreferences("screenme", 0).edit()
                     .remove("syncTree").remove("syncDirect")
+                    .remove("syncFolderName")
                     .remove(Storage.PREF_ERROR).remove(Storage.PREF_PENDING)
                     .remove(SyncScheduler.PREF_STATE).apply();
             SyncScheduler.cancel(this);
@@ -363,6 +364,7 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
                         .putString("syncTree", u.toString())
                         .putBoolean("syncDirect", true)
                         .remove(Storage.PREF_ERROR).apply();
+                Storage.rememberSyncDestination(this, u);
                 SyncScheduler.resume(this);
                 int queued = Storage.queueAllRecords(this);
                 syncStatus.setText(syncText());

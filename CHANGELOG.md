@@ -1,5 +1,12 @@
 # Dnevnik sprememb
 
+## 0.4.7 — 2026-09-07
+
+- Prenosi so preverjeni in povezani z mapo `Moj disk / ScreenMe / ScreenMe` v pravem Google računu.
+- Zgodovina prenosov je prenovljena v pregledne kartice, ki pokažejo projekt, naslov, zapis, točen čas, ciljno mapo, skupno velikost in imena datotek.
+- Ob nadgradnji se ohranjeni lokalni zapisi še enkrat uvrstijo v čakalno vrsto, da se dopolni Drive in novi podrobni dnevnik.
+- Vmesni korak nastavljanja Driva se ne izgubi več, če internet ob prvi vrnitvi v ScreenMe še ni pripravljen.
+
 ## 0.4.6 — 2026-09-07
 
 - Pred izbiro oblačne mape ScreenMe preveri internetno povezavo in ob manjkajoči povezavi ponudi neposreden prehod v omrežne nastavitve.

@@ -3,13 +3,20 @@ package si.screenme.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
 
 final class SyncQueueDialog {
     private SyncQueueDialog() {}
@@ -41,14 +48,24 @@ final class SyncQueueDialog {
         panel.addView(chooseFolder);
         Ui.margin(chooseFolder, 0, 8, 0, 0);
 
-        TextView historyLabel = Ui.label(activity, "ZGODOVINA POSLANIH");
-        panel.addView(historyLabel);
-        Ui.margin(historyLabel, 0, 18, 0, 8);
-        TextView history = Ui.text(activity, "", 13, Ui.MUTED);
-        history.setPadding(Ui.dp(activity, 12), Ui.dp(activity, 10),
+        TextView destination = Ui.text(activity, "", 13, Ui.MUTED);
+        destination.setPadding(Ui.dp(activity, 12), Ui.dp(activity, 10),
                 Ui.dp(activity, 12), Ui.dp(activity, 10));
-        history.setBackground(Ui.shape(0xFFF3F0FA, 12, activity));
-        panel.addView(history);
+        destination.setBackground(Ui.shape(0xFFF3F0FA, 12, activity));
+        panel.addView(destination);
+        Ui.margin(destination, 0, 8, 0, 0);
+
+        LinearLayout historyHeader = Ui.row(activity);
+        TextView historyLabel = Ui.label(activity, "PRENESENE DATOTEKE");
+        historyHeader.addView(historyLabel, Ui.weight(0, -2, 1));
+        TextView historyCount = Ui.label(activity, "0 PRENOSOV");
+        historyCount.setTextColor(Ui.GREEN);
+        historyHeader.addView(historyCount);
+        panel.addView(historyHeader);
+        Ui.margin(historyHeader, 0, 18, 0, 8);
+        LinearLayout historyList = new LinearLayout(activity);
+        historyList.setOrientation(LinearLayout.VERTICAL);
+        panel.addView(historyList);
 
         LinearLayout first = Ui.row(activity);
         TextView pause = Ui.button(activity, "PAVZA", false);
@@ -89,6 +106,7 @@ final class SyncQueueDialog {
 
         Handler handler = new Handler(Looper.getMainLooper());
         Runnable[] updater = new Runnable[1];
+        String[] historyStamp = new String[]{null};
         updater[0] = () -> {
             if (!dialog.isShowing()) return;
             SharedPreferences prefs = activity.getSharedPreferences("screenme", 0);
@@ -114,6 +132,8 @@ final class SyncQueueDialog {
             String problem = prefs.getString(Storage.PREF_ERROR, "");
             boolean folder = !prefs.getString("syncTree", "").isEmpty();
             chooseFolder.setText(folder ? "SPREMENI OBLAČNO MAPO" : "NASTAVI OBLAČNO MAPO");
+            destination.setText(folder ? "Ciljna mapa  ·  " + Storage.syncDestinationName(activity)
+                    : "Izberi mapo, da se bodo novi in obstoječi zapisi prenesli v oblak.");
             if (!folder) {
                 state.setText("Oblačna mapa ni nastavljena");
                 state.setTextColor(Ui.AMBER);
@@ -144,7 +164,11 @@ final class SyncQueueDialog {
             current.setVisibility(record.isEmpty() ? View.GONE : View.VISIBLE);
             error.setText(problem.isEmpty() ? "" : "⚠ " + problem);
             error.setVisibility(problem.isEmpty() ? View.GONE : View.VISIBLE);
-            history.setText(Storage.historyText(activity));
+            String rawHistory = prefs.getString(Storage.PREF_HISTORY, "");
+            if (!rawHistory.equals(historyStamp[0])) {
+                historyStamp[0] = rawHistory;
+                renderHistory(activity, historyList, historyCount, Storage.history(activity));
+            }
             handler.postDelayed(updater[0], 700);
         };
 
@@ -211,5 +235,89 @@ final class SyncQueueDialog {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return (bytes / 1024) + " KB";
         return String.format(java.util.Locale.ROOT, "%.1f MB", bytes / 1048576d);
+    }
+
+    private static void renderHistory(Activity activity, LinearLayout list, TextView count,
+                                      ArrayList<Storage.HistoryEntry> entries) {
+        list.removeAllViews();
+        count.setText(entries.size() == 1 ? "1 PRENOS" : entries.size() + " PRENOSOV");
+        if (entries.isEmpty()) {
+            TextView empty = Ui.text(activity,
+                    "Še ni uspešnih prenosov. Ko Drive sprejme vse datoteke zapisa, se bodo prikazale tukaj.",
+                    13, Ui.MUTED);
+            empty.setPadding(Ui.dp(activity, 14), Ui.dp(activity, 13),
+                    Ui.dp(activity, 14), Ui.dp(activity, 13));
+            empty.setBackground(Ui.shape(0xFFF3F0FA, 12, activity));
+            list.addView(empty);
+            return;
+        }
+
+        SimpleDateFormat date = new SimpleDateFormat("dd. MMM yyyy · HH:mm:ss",
+                new Locale("sl", "SI"));
+        for (int index = 0; index < entries.size() && index < 12; index++) {
+            Storage.HistoryEntry entry = entries.get(index);
+            LinearLayout card = Ui.card(activity);
+            card.setBackground(Ui.outlined(activity, 0xFFF7FCF9, 1));
+            card.setPadding(Ui.dp(activity, 14), Ui.dp(activity, 13),
+                    Ui.dp(activity, 14), Ui.dp(activity, 13));
+
+            LinearLayout top = Ui.row(activity);
+            TextView sent = Ui.text(activity, "✓  PRENESENO", 11, Ui.GREEN);
+            sent.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            sent.setLetterSpacing(.05f);
+            sent.setPadding(Ui.dp(activity, 9), Ui.dp(activity, 5),
+                    Ui.dp(activity, 9), Ui.dp(activity, 5));
+            sent.setBackground(Ui.shape(0xFFE4F6ED, 99, activity));
+            top.addView(sent);
+            TextView when = Ui.text(activity, date.format(new Date(entry.time)), 12, Ui.MUTED);
+            when.setGravity(Gravity.END);
+            top.addView(when, Ui.weight(0, -2, 1));
+            card.addView(top);
+
+            TextView project = Ui.text(activity, entry.project.isEmpty()
+                    ? "Neznan projekt" : entry.project, 17, Ui.INK);
+            project.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            card.addView(project);
+            Ui.margin(project, 0, 10, 0, 0);
+
+            if (!entry.title.isEmpty() && !"Brez naslova".equals(entry.title)) {
+                TextView title = Ui.text(activity, entry.title, 14, Ui.INK);
+                card.addView(title);
+                Ui.margin(title, 0, 3, 0, 0);
+            }
+
+            TextView record = Ui.text(activity, "Zapis  ·  " + entry.record, 12, Ui.MUTED);
+            record.setTypeface(Typeface.MONOSPACE);
+            card.addView(record);
+            Ui.margin(record, 0, 6, 0, 0);
+
+            if (!entry.destination.isEmpty()) {
+                TextView target = Ui.text(activity, "Cilj  ·  " + entry.destination, 12, Ui.MUTED);
+                card.addView(target);
+                Ui.margin(target, 0, 4, 0, 0);
+            }
+
+            StringBuilder names = new StringBuilder();
+            for (String file : entry.files) {
+                if (names.length() > 0) names.append("  •  ");
+                names.append(file);
+            }
+            String total = entry.files.size() + (entry.files.size() == 1
+                    ? " datoteka" : " datoteke")
+                    + (entry.bytes > 0 ? "  ·  " + size(entry.bytes) : "");
+            TextView fileSummary = Ui.text(activity, total, 13, Ui.GREEN);
+            fileSummary.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            card.addView(fileSummary);
+            Ui.margin(fileSummary, 0, 9, 0, 0);
+            if (names.length() > 0) {
+                TextView files = Ui.text(activity, names.toString(), 12, Ui.MUTED);
+                files.setLineSpacing(0, 1.12f);
+                card.addView(files);
+                Ui.margin(files, 0, 4, 0, 0);
+            }
+
+            list.addView(card);
+            if (index + 1 < entries.size() && index < 11) Ui.margin(card, 0, 0, 0, 8);
+        }
     }
 }
