@@ -1,5 +1,15 @@
 # Dnevnik sprememb
 
+## 0.4.2 — 2026-09-07
+
+- Dodan je hiter uvoz ene ali več slik oziroma posnetkov v izbrani obstoječi ali novi projekt.
+- Slike je mogoče poslati v ScreenMe tudi neposredno iz Androidovega menija Deli.
+- Kratek dotik, ki mu takoj sledi daljši dotik plavajočega gumba, odpre izbiro slik.
+- Drive prenosi imajo trajno čakalno vrsto in se po napaki, izgubi omrežja ali ponovnem zagonu samodejno nadaljujejo.
+- Nastavitve pokažejo dejansko napako in število čakajočih zapisov ter omogočajo ponovno pošiljanje vseh lokalnih zapisov.
+- Izbrana mapa je zdaj neposreden cilj projektov; obstoječa postavitev ostane združljiva.
+- Ob nadgradnji se lokalni zapisi samodejno znova uvrstijo za prenos, kar popravi prej ustvarjene prazne Drive mape.
+
 ## 0.4.1 — 2026-08-27
 
 - Preverjanje posodobitev se izvede takoj ob odprtju ScreenMe in približno vsake tri ure prek trajnega Androidovega opravila.

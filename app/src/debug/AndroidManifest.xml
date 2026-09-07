@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug-only: lets automated device tests inject a MediaStore image. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <application android:usesCleartextTraffic="true">
         <activity android:name=".EditorTestActivity" android:exported="true" />
     </application>

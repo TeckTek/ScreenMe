@@ -197,8 +197,10 @@ public class NoteActivity extends androidx.activity.ComponentActivity {
         Storage.sync(this, dir);
         boolean turbo = getSharedPreferences("screenme", 0).getBoolean("turbo", false);
         boolean folder = !getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty();
-        Ui.toast(this, turbo ? (folder ? "Zapis je poslan v Turbo vrsto"
-                : "Zapis je lokalen · Turbo čaka na mapo") : "Zapis je shranjen");
+        Ui.toast(this, turbo ? (folder ? "Zapis čaka na pošiljanje v Turbo vrsto"
+                : "Zapis je lokalen · Turbo čaka na mapo")
+                : (folder ? "Zapis je shranjen · pošiljanje v Drive poteka"
+                : "Zapis je shranjen lokalno"));
         returnToSource();
     }
 

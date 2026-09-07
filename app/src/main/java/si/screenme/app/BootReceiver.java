@@ -6,6 +6,8 @@ public class BootReceiver extends BroadcastReceiver{
         if(Intent.ACTION_BOOT_COMPLETED.equals(action)||Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)){
             UpdateScheduler.schedule(c);
             UpdateScheduler.scheduleImmediate(c);
+            SyncScheduler.schedulePeriodic(c);
+            SyncScheduler.scheduleNow(c);
         }
     }
 }

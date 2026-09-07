@@ -140,10 +140,22 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         choose.setOnClickListener(v -> chooseTree());
         sync.addView(choose);
         Ui.margin(choose, 0, 14, 0, 0);
+        TextView retry = Ui.button(this, "POŠLJI LOKALNE ZAPISE ZNOVA", false);
+        retry.setOnClickListener(v -> {
+            int queued = Storage.queueAllRecords(this);
+            syncStatus.setText(syncText());
+            Ui.toast(this, queued == 0 ? "Ni novih lokalnih zapisov za pošiljanje"
+                    : queued + " zapisov je v čakalni vrsti");
+        });
+        sync.addView(retry);
+        Ui.margin(retry, 0, 10, 0, 0);
         TextView clear = Ui.text(this, "Odstrani povezavo z mapo", 13, Ui.RED);
         clear.setPadding(0, Ui.dp(this, 15), 0, 0);
         clear.setOnClickListener(v -> {
-            getSharedPreferences("screenme", 0).edit().remove("syncTree").apply();
+            getSharedPreferences("screenme", 0).edit()
+                    .remove("syncTree").remove("syncDirect")
+                    .remove(Storage.PREF_ERROR).remove(Storage.PREF_PENDING).apply();
+            SyncScheduler.cancel(this);
             syncStatus.setText(syncText());
         });
         sync.addView(clear);
@@ -290,12 +302,19 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
     }
 
     String syncText() {
-        boolean folder = !getSharedPreferences("screenme", 0).getString("syncTree", "").isEmpty();
-        boolean on = getSharedPreferences("screenme", 0).getBoolean("turbo", false);
+        android.content.SharedPreferences prefs = getSharedPreferences("screenme", 0);
+        boolean folder = !prefs.getString("syncTree", "").isEmpty();
+        boolean on = prefs.getBoolean("turbo", false);
         if (!folder) {
             return on ? "⚠  Turbo čaka na mapo ScreenMe Turbo."
                     : "Oblačna mapa še ni izbrana. Uporabi Google Drive, Dropbox ali drugo mapo ponudnika dokumentov.";
         }
+        String error = prefs.getString(Storage.PREF_ERROR, "");
+        int pending = prefs.getInt(Storage.PREF_PENDING, 0);
+        if (!error.isEmpty()) return "⚠  Drive ni sprejel datotek: " + error
+                + (pending > 0 ? " · čaka " + pending + " zapisov." : ".");
+        if (pending > 0) return "↻  V Drive se pošilja " + pending
+                + (pending == 1 ? " zapis." : " zapisov.");
         return on ? "⚡  Turbo je povezan. Novi zapisi gredo v skupno delovno vrsto."
                 : "✓  Sinhronizacija je nastavljena. Novi zapisi se samodejno kopirajo v izbrano mapo.";
     }
@@ -325,11 +344,20 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
         super.onActivityResult(r, result, data);
         if (r == TREE && result == RESULT_OK && data != null && data.getData() != null) {
             Uri u = data.getData();
-            getContentResolver().takePersistableUriPermission(u,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            getSharedPreferences("screenme", 0).edit().putString("syncTree", u.toString()).apply();
-            syncStatus.setText(syncText());
-            Ui.toast(this, "Sinhronizacijska mapa je nastavljena");
+            try {
+                getContentResolver().takePersistableUriPermission(u,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                getSharedPreferences("screenme", 0).edit()
+                        .putString("syncTree", u.toString())
+                        .putBoolean("syncDirect", true)
+                        .remove(Storage.PREF_ERROR).apply();
+                int queued = Storage.queueAllRecords(this);
+                syncStatus.setText(syncText());
+                Ui.toast(this, queued == 0 ? "Sinhronizacijska mapa je nastavljena"
+                        : "Mapa je nastavljena · pošiljam " + queued + " zapisov");
+            } catch (Exception error) {
+                Ui.toast(this, "ScreenMe ni dobil dovoljenja za pisanje v to mapo");
+            }
         }
     }
 
@@ -363,6 +391,7 @@ public class SettingsActivity extends androidx.activity.ComponentActivity {
             notificationStatus.setTextColor(UpdateChecker.canNotify(this) ? Ui.GREEN : Ui.AMBER);
         }
         if (updateStatus != null) updateStatus.setText(UpdateChecker.lastStatus(this));
+        if (syncStatus != null) syncStatus.setText(syncText());
     }
 
     @Override protected void onPause() {
