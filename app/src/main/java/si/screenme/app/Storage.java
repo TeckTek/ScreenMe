@@ -119,7 +119,7 @@ final class Storage {
             for (File record : pending) {
                 if (stopCheck != null && stopCheck.stopped()) break;
                 try {
-                    syncRecord(context, Uri.parse(raw), record);
+                    syncRecordWithRetries(context, Uri.parse(raw), record, stopCheck);
                     File marker = new File(record, PENDING_FILE);
                     if (marker.exists() && !marker.delete()) {
                         throw new IOException("Končanega prenosa ni mogoče označiti");
@@ -206,6 +206,25 @@ final class Storage {
         }
     }
 
+    private static void syncRecordWithRetries(Context context, Uri tree, File record,
+                                              StopCheck stopCheck) throws Exception {
+        Exception lastError = null;
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            if (stopCheck != null && stopCheck.stopped()) {
+                throw new IOException("Pošiljanje je bilo začasno prekinjeno");
+            }
+            try {
+                syncRecord(context, tree, record);
+                return;
+            } catch (Exception error) {
+                lastError = error;
+                if (attempt < 4) Thread.sleep(attempt * 750L);
+            }
+        }
+        throw new IOException("Drive po štirih poskusih ni sprejel datotek: "
+                + readable(lastError), lastError);
+    }
+
     private static int order(File file) {
         String name = file.getName();
         if (name.equals("screenshot.png")) return 0;
@@ -246,7 +265,7 @@ final class Storage {
         if (outputUri == null) throw new IOException("Datoteke »" + file.getName()
                 + "« ni mogoče ustvariti");
         try (InputStream input = new FileInputStream(file);
-             OutputStream output = context.getContentResolver().openOutputStream(outputUri)) {
+             OutputStream output = openForWrite(context, outputUri)) {
             if (output == null) throw new IOException("Datoteke »" + file.getName()
                     + "« ni mogoče odpreti za pisanje");
             byte[] buffer = new byte[64 * 1024];
@@ -277,12 +296,28 @@ final class Storage {
         Uri outputUri = DocumentsContract.createDocument(context.getContentResolver(), parent,
                 name.endsWith(".json") ? "application/json" : "text/markdown", name);
         if (outputUri == null) throw new IOException("Datoteke »" + name + "« ni mogoče ustvariti");
-        try (OutputStream output = context.getContentResolver().openOutputStream(outputUri)) {
+        try (OutputStream output = openForWrite(context, outputUri)) {
             if (output == null) throw new IOException("Datoteke »" + name
                     + "« ni mogoče odpreti za pisanje");
             output.write(value.getBytes(StandardCharsets.UTF_8));
             output.flush();
         }
+    }
+
+    private static OutputStream openForWrite(Context context, Uri uri) throws Exception {
+        Exception lastError = null;
+        // Google Drive's Android document provider is most reliable with explicit
+        // truncate mode. Other providers sometimes accept only the standard mode.
+        for (String mode : new String[]{"wt", "w", "rwt"}) {
+            try {
+                OutputStream output = context.getContentResolver().openOutputStream(uri, mode);
+                if (output != null) return output;
+            } catch (Exception error) {
+                lastError = error;
+            }
+        }
+        throw new IOException("Datoteke ni mogoče odpreti za pisanje: "
+                + readable(lastError), lastError);
     }
 
     static String protocol() {
@@ -309,6 +344,7 @@ final class Storage {
     }
 
     private static String readable(Exception error) {
+        if (error == null) return "neznana napaka";
         String message = error.getMessage();
         if (message == null || message.trim().isEmpty()) return error.getClass().getSimpleName();
         return message.trim();

@@ -4,7 +4,7 @@ import android.Manifest;import android.app.*;import android.content.*;import and
 
 public class MainActivity extends Activity {
     static final int CAPTURE=42,IMPORT_IMAGES=43;Spinner projects;ArrayAdapter<String> projectAdapter;TextView start,status;boolean firstResume=true,fromOverlay,checkingUpdate;
-    @Override public void onCreate(Bundle b){super.onCreate(b);fromOverlay=getIntent().getBooleanExtra("fromOverlay",false);Ui.bars(this);UpdateScheduler.schedule(this);SyncScheduler.schedulePeriodic(this);Storage.requeueForUpgrade(this,8);if(!getSharedPreferences("screenme",0).getBoolean("onboarded",false))startActivity(new Intent(this,OnboardingActivity.class));build();checkForUpdates();handleIncoming(getIntent());}
+    @Override public void onCreate(Bundle b){super.onCreate(b);fromOverlay=getIntent().getBooleanExtra("fromOverlay",false);Ui.bars(this);UpdateScheduler.schedule(this);SyncScheduler.schedulePeriodic(this);Storage.requeueForUpgrade(this,9);if(!getSharedPreferences("screenme",0).getBoolean("onboarded",false))startActivity(new Intent(this,OnboardingActivity.class));build();checkForUpdates();handleIncoming(getIntent());}
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);fromOverlay=intent.getBooleanExtra("fromOverlay",false);handleIncoming(intent);}
     @Override protected void onResume(){super.onResume();if(fromOverlay)OverlayService.setUiHidden(true);if(!firstResume)build();firstResume=false;maybeRequestNotificationPermission();}
     @Override protected void onPause(){if(fromOverlay&&OverlayService.running)OverlayService.setUiHidden(false);super.onPause();}

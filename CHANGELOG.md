@@ -1,5 +1,11 @@
 # Dnevnik sprememb
 
+## 0.4.3 — 2026-09-07
+
+- Drive zapisovanje uporablja način, ki ga Googlov Androidov ponudnik dokumentov zanesljivo podpira, z varnimi nadomestnimi načini za druge ponudnike.
+- Pri počasni pripravi nove Drive mape ScreenMe prenos samodejno ponovi do štirikrat, preden ga pusti v trajni čakalni vrsti.
+- Ob nadgradnji se vsi ohranjeni lokalni zapisi ponovno pošljejo in dopolnijo prej ustvarjene prazne mape.
+
 ## 0.4.2 — 2026-09-07
 
 - Dodan je hiter uvoz ene ali več slik oziroma posnetkov v izbrani obstoječi ali novi projekt.
