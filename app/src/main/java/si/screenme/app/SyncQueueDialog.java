@@ -219,7 +219,7 @@ final class SyncQueueDialog {
         });
         refresh.setOnClickListener(v -> {
             Storage.refreshStatus(activity);
-            SyncScheduler.scheduleNow(activity);
+            SyncScheduler.runNow(activity);
             updateNow.run();
         });
         deleteQueue.setOnClickListener(v -> new AlertDialog.Builder(activity)

@@ -118,7 +118,7 @@ final class Storage {
                     prefs.getInt(PREF_BATCH_DONE, 0) + pending));
         }
         edit.apply();
-        SyncScheduler.scheduleNow(context);
+        SyncScheduler.runNow(context);
     }
 
     static int queueAllRecords(Context context) {
@@ -147,7 +147,7 @@ final class Storage {
                 .putInt(PREF_FILE_INDEX, 0).putInt(PREF_FILE_TOTAL, 0)
                 .putLong(PREF_FILE_BYTES, 0).putLong(PREF_FILE_SIZE, 0)
                 .remove(PREF_ERROR).apply();
-        if (pending > 0) SyncScheduler.scheduleNow(context);
+        if (pending > 0) SyncScheduler.runNow(context);
         return pending;
     }
 

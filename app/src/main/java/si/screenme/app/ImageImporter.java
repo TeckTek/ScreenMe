@@ -14,7 +14,7 @@ import java.io.InputStream;
 final class ImageImporter {
     private ImageImporter() {}
 
-    static File importOne(Context context, Uri source, String project) throws Exception {
+    static File prepareOne(Context context, Uri source, String project) throws Exception {
         String displayName = displayName(context, source);
         File record = Storage.newRecord(context, project);
         File image = new File(record, "screenshot.png");
@@ -35,8 +35,16 @@ final class ImageImporter {
             ProjectStore.deleteTree(record);
             throw new IOException("Izbrana datoteka ni veljavna slika");
         }
+        return record;
+    }
+
+    static File importOne(Context context, Uri source, String project,
+                          String suppliedNote) throws Exception {
+        String displayName = displayName(context, source);
+        File record = prepareOne(context, source, project);
         String title = title(displayName);
-        String note = "Uvožena slika: " + displayName;
+        String note = suppliedNote == null ? "" : suppliedNote.trim();
+        if (note.isEmpty()) note = "Uvožena slika: " + displayName;
         Storage.text(new File(record, "note.md"), "# " + title + "\n\n**Projekt:** "
                 + project + "  \n**Resnost:** Običajna\n\n## Opis\n\n" + note + "\n");
         Storage.text(new File(record, "metadata.json"),

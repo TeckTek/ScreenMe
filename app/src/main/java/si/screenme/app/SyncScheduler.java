@@ -4,6 +4,8 @@ import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
 
 final class SyncScheduler {
     static final String PREF_STATE = "syncRunState";
@@ -39,6 +41,17 @@ final class SyncScheduler {
                 .build());
     }
 
+    static void runNow(Context context) {
+        if (!isRunning(context) || context.getSharedPreferences("screenme", 0)
+                .getString("syncTree", "").isEmpty()) return;
+        try {
+            Intent service = new Intent(context, SyncForegroundService.class);
+            if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(service);
+            else context.startService(service);
+        } catch (Exception ignored) {}
+        scheduleNow(context);
+    }
+
     static void schedulePeriodic(Context context) {
         if (!isRunning(context) || context.getSharedPreferences("screenme", 0)
                 .getString("syncTree", "").isEmpty()) return;
@@ -61,18 +74,20 @@ final class SyncScheduler {
         context.getSharedPreferences("screenme", 0).edit()
                 .putString(PREF_STATE, PAUSED).apply();
         cancel(context);
+        context.stopService(new Intent(context, SyncForegroundService.class));
     }
 
     static void stop(Context context) {
         context.getSharedPreferences("screenme", 0).edit()
                 .putString(PREF_STATE, STOPPED).apply();
         cancel(context);
+        context.stopService(new Intent(context, SyncForegroundService.class));
     }
 
     static void resume(Context context) {
         context.getSharedPreferences("screenme", 0).edit()
                 .putString(PREF_STATE, RUNNING).remove(Storage.PREF_ERROR).apply();
         schedulePeriodic(context);
-        if (Storage.countPending(context) > 0) scheduleNow(context);
+        if (Storage.countPending(context) > 0) runNow(context);
     }
 }

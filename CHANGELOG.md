@@ -1,5 +1,14 @@
 # Dnevnik sprememb
 
+## 0.4.9 — 2026-09-08
+
+- Uvoz ali deljenje enega screenshota pred pošiljanjem odpre običajni obrazec za opombo, kjer so na voljo tudi projekt, resnost in slovensko narekovanje.
+- Pri skupinskem uvozu slik je mogoče hitro dodati eno skupno opombo ali nadaljevati brez nje.
+- Novi posnetki in opombe ob shranitvi takoj zaženejo viden foreground prenos, zato tipke `ZAŽENI` pri normalno aktivni sinhronizaciji ni več treba pritiskati.
+- Androidovo sistemsko opravilo ostane vključeno kot rezervni ponovni poskus ob manjkajočem omrežju ali začasni napaki Driva.
+- Ob odprtju ScreenMe se morebitna čakajoča vrsta samodejno požene brez dodatnega klika.
+- Ročno izbrana pavza ali ustavitev se še vedno spoštujeta in takoj ustavita tudi foreground prenos.
+
 ## 0.4.8 — 2026-09-07
 
 - ScreenMe samodejno odstrani nove prazne Drive mape, ki bi jih za sabo pustil neuspel prenos.
